@@ -1,0 +1,1434 @@
+<!doctype html>
+<html lang="id">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<title>Lighting Lab Broadcasting</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* Layout: aplikasi satu layar (desktop landscape). Sidebar kiri = daftar bab; panggung kanan = materi per slide, lab, atau latihan. Setiap lab tampil sebagai monitor kamera. Aksen ganda = tungsten 3200K & daylight 5600K. */
+:root{
+  --ink:#0F0E0C;
+  --panel:#191714;
+  --panel-2:#221F1B;
+  --line:#35302A;
+  --fg:#F4EFE7;
+  --soft-fg:#D8D0C4;
+  --muted:#A99F92;
+  --tungsten:#FFAE45;
+  --daylight:#8CC4FF;
+  --rec:#FF5A4E;
+  --ok:#5DDE9A;
+  --mon:#060605;
+  --tungsten-soft:rgba(255,174,69,.14);
+  --daylight-soft:rgba(140,196,255,.12);
+  --rec-soft:rgba(255,90,78,.14);
+  --ok-soft:rgba(93,222,154,.14);
+  --f-display:'Bricolage Grotesque','Arial Black',system-ui,sans-serif;
+  --f-body:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r-sm:8px;--r-md:14px;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--ink);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow:hidden}
+h1,h2,h3{font-family:var(--f-display);line-height:1.08;text-wrap:balance;margin:0;letter-spacing:-.01em}
+h2{font-size:clamp(1.35rem,3.3vh,2rem);font-weight:800}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--daylight);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+.tg{color:var(--tungsten)} .dl{color:var(--daylight)}
+b,strong{color:var(--fg)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--rec);box-shadow:0 0 0 3px var(--rec-soft);animation:blink 1.6s steps(2,start) infinite;flex:none}
+@keyframes blink{to{opacity:.25}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:999px;font-weight:700;text-decoration:none;border:1px solid var(--line);background:var(--panel-2);color:var(--fg);cursor:pointer;transition:background .15s,transform .15s;font-size:.92rem}
+.btn:hover{background:var(--line)}
+.btn.primary{background:var(--tungsten);color:var(--ink);border-color:var(--tungsten)}
+.btn.primary:hover{background:#FFC67A}
+.btn.blue{background:var(--daylight);color:var(--ink);border-color:var(--daylight)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.75rem;font-weight:700;font-family:var(--f-mono)}
+.pill.hi{background:var(--rec-soft);color:var(--rec)} .pill.mid{background:var(--tungsten-soft);color:var(--tungsten)} .pill.lo{background:var(--daylight-soft);color:var(--daylight)} .pill.okp{background:var(--ok-soft);color:var(--ok)}
+.cv{position:relative;min-height:0;min-width:0;background:var(--mon);overflow:hidden}
+.cv canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* ---------- Gate (halaman pembuka) ---------- */
+#gate{height:100%;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(340px,1fr);gap:16px;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.gate-stage{position:relative;border-radius:var(--r-md);overflow:hidden;border:1px solid var(--line);min-height:0}
+.gate-stage .cv{position:absolute;inset:0}
+.gate-title{position:absolute;left:28px;bottom:24px;right:28px;display:grid;gap:8px;pointer-events:none}
+.gate-title h1{font-size:clamp(3rem,11vh,7rem);font-weight:800;letter-spacing:-.04em;line-height:.88;color:var(--fg);text-shadow:0 4px 30px rgba(0,0,0,.6)}
+.gate-title p{color:var(--soft-fg);max-width:44ch;text-shadow:0 2px 12px rgba(0,0,0,.8)}
+.gate-hint{position:absolute;top:16px;left:18px;display:flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:.72rem;color:var(--soft-fg);letter-spacing:.08em;background:rgba(0,0,0,.45);padding:5px 10px;border-radius:999px}
+.gate-form{align-self:center;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:clamp(18px,3vh,28px);display:grid;gap:clamp(10px,1.8vh,16px);max-height:100%;overflow:auto}
+.gate-shade{position:absolute;left:0;right:0;bottom:0;height:62%;pointer-events:none;background:linear-gradient(180deg,rgba(10,9,8,0) 0%,rgba(10,9,8,.55) 40%,rgba(10,9,8,.92) 100%)}
+.gate-title .eyebrow{color:var(--soft-fg)}
+.gate-hello{font-family:var(--f-display);font-weight:600;font-size:clamp(1.2rem,3.4vh,1.8rem);color:var(--tungsten);text-shadow:0 2px 12px rgba(0,0,0,.8)}
+.school{display:flex;align-items:center;gap:12px;padding-bottom:clamp(10px,1.8vh,16px);border-bottom:1px solid var(--line)}
+.school img{width:clamp(44px,7vh,56px);height:auto;flex:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
+.school div{display:grid;gap:1px;min-width:0}
+.school b{font-family:var(--f-display);font-size:1.1rem;line-height:1.15}
+.school span{font-size:.8rem;color:var(--muted)}
+.welcome{display:grid;gap:6px}
+.welcome h2{color:var(--fg)}
+.welcome p{color:var(--soft-fg);font-size:.9rem}
+.brand img{width:26px;height:auto;flex:none}
+.brand small{display:block;font-family:var(--f-mono);font-size:.6rem;font-weight:400;letter-spacing:.08em;color:var(--muted)}
+.hello .school{border-bottom:0;padding-bottom:0}
+.field{display:grid;gap:6px}
+.field label,.field .lbl{display:flex;justify-content:space-between;gap:8px;font-size:.86rem;font-weight:600}
+.field label span,.field .lbl span{font-family:var(--f-mono);font-weight:400;color:var(--tungsten)}
+.field small{color:var(--muted);font-size:.78rem}
+input[type=text],input[type=number],select{width:100%;background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;font:inherit}
+input[type=text]:focus,input[type=number]:focus,select:focus{border-color:var(--tungsten);outline:none}
+input[type=range]{width:100%;accent-color:var(--tungsten)}
+.err{color:var(--rec);font-size:.82rem;min-height:1.2em}
+.slate{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.slate div{padding:8px 10px;border-right:1px solid var(--line);min-width:0}
+.slate div:last-child{border-right:0}
+.slate small{display:block;font-family:var(--f-mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.slate span{font-weight:700;font-size:.86rem}
+
+/* ---------- App shell ---------- */
+#app{height:100%;display:grid;grid-template-columns:230px minmax(0,1fr);gap:16px;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:16px;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:16px;min-height:0;overflow:auto}
+.brand{display:flex;align-items:center;gap:9px;font-family:var(--f-display);font-weight:800;font-size:1.05rem;letter-spacing:.02em}
+.who{display:grid;gap:2px;padding:10px 12px;border-radius:var(--r-sm);background:var(--panel-2);border:1px solid var(--line)}
+.who b{font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who span{font-size:.8rem;color:var(--muted)}
+.who button{justify-self:start;background:none;border:0;padding:0;color:var(--tungsten);font-size:.78rem;cursor:pointer;margin-top:4px}
+.nav{display:grid;gap:6px;align-content:start}
+.nav button{display:grid;gap:6px;text-align:left;padding:10px 12px;border-radius:var(--r-sm);border:1px solid transparent;background:none;cursor:pointer}
+.nav button:hover{background:var(--panel-2)}
+.nav button[aria-current="page"]{background:var(--panel-2);border-color:var(--tungsten)}
+.nav .t{font-weight:700;font-size:.92rem}
+.nav .k{font-family:var(--f-mono);font-size:.68rem;color:var(--muted);letter-spacing:.08em}
+.meter{display:flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:.7rem;color:var(--muted)}
+.meter .bar{flex:1;height:5px;border-radius:99px;background:var(--line);overflow:hidden}
+.meter .bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .4s}
+.side-foot{display:grid;gap:6px;font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.side-foot .xp{font-size:1.2rem;color:var(--tungsten);font-weight:600}
+.main{display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;min-height:0;min-width:0}
+.mhead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;min-height:52px}
+.mhead h1{font-size:clamp(1.5rem,4vh,2.3rem);font-weight:800;letter-spacing:-.02em}
+.kd{font-family:var(--f-mono);font-size:.74rem;color:var(--tungsten)}
+.subtabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
+.subtabs button{padding:7px 16px;border-radius:999px;border:0;background:none;cursor:pointer;font-weight:700;font-size:.88rem;color:var(--muted)}
+.subtabs button[aria-selected="true"]{background:var(--tungsten);color:var(--ink)}
+.stage{min-height:0;min-width:0;position:relative}
+.panel{height:100%;min-height:0;min-width:0}
+
+/* ---------- Home ---------- */
+.home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2.1fr);gap:16px;height:100%}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:16px;display:grid;gap:8px;align-content:start;min-width:0;min-height:0}
+.card p{color:var(--soft-fg);font-size:.92rem}
+.card .tag{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.hello{display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:14px;overflow:auto}
+.hello h2{font-size:clamp(1.5rem,4vh,2.3rem)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px}
+.stat b{display:block;font-family:var(--f-mono);font-size:1.5rem;color:var(--tungsten)}
+.stat span{font-size:.78rem;color:var(--muted)}
+.flow{display:grid;gap:8px;counter-reset:s;align-content:start}
+.flow div{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:.88rem}
+.flow div::before{counter-increment:s;content:"0" counter(s);font-family:var(--f-mono);color:var(--tungsten);grid-row:span 2}
+.flow div span{color:var(--muted)}
+.chapters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;min-height:0}
+.chap{display:grid;grid-template-rows:minmax(0,1fr) auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;cursor:pointer;text-align:left;padding:0;transition:border-color .2s;min-height:0}
+.chap:hover{border-color:var(--tungsten)}
+.chap .body{padding:14px 16px;display:grid;gap:8px}
+.chap h3{font-size:1.08rem}
+.chap .body{gap:6px}
+.chap ul{margin:0;padding-left:16px;color:var(--muted);font-size:.84rem}
+
+/* ---------- Materi (slides) ---------- */
+.materi{height:100%;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px}
+.slides{min-height:0;position:relative}
+.slide{height:100%;min-height:0;display:grid;gap:16px}
+.split{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)}
+.col{display:grid;gap:12px;align-content:start;min-height:0;overflow:auto;padding-right:4px}
+.col p{color:var(--soft-fg)}
+.rows{grid-template-rows:auto minmax(0,1fr)}
+.rows3{grid-template-rows:auto minmax(0,1fr) auto}
+.figs{display:grid;grid-template-columns:repeat(var(--n,2),minmax(0,1fr));gap:12px;min-height:0}
+.figs.g2x3{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+.fig{display:grid;grid-template-rows:minmax(0,1fr) auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;min-height:0}
+.fig .cap{padding:9px 12px;display:grid;gap:2px}
+.fig .cap b{font-size:.92rem}
+.fig .cap span{font-size:.8rem;color:var(--muted)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.goal{padding:8px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel)}
+.goal small{font-family:var(--f-mono);font-size:.66rem;color:var(--tungsten)}
+.goal b{display:block;font-size:.86rem}
+.goal p{font-size:.78rem;color:var(--muted)}
+.quote{border-left:3px solid var(--tungsten);padding:4px 0 4px 14px;font-family:var(--f-display);font-size:clamp(1.15rem,2.8vh,1.6rem);font-weight:600}
+.callout{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 14px;background:var(--panel);display:grid;gap:2px}
+.callout.warn{border-color:rgba(255,174,69,.5);background:var(--tungsten-soft)}
+.callout p{font-size:.88rem;color:var(--soft-fg)}
+.scenes{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;min-height:0}
+.scene{display:grid;grid-template-rows:minmax(40px,1fr) auto;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;background:var(--panel);min-height:0}
+.scene .frame{position:relative}
+.scene .frame span{position:absolute;left:8px;bottom:6px;font-family:var(--f-mono);font-size:.66rem;color:rgba(255,255,255,.9);background:rgba(0,0,0,.55);padding:2px 6px;border-radius:4px}
+.scene .txt{padding:8px 10px;display:grid;gap:2px}
+.scene .txt b{font-size:.86rem}
+.scene .txt p{font-size:.78rem;color:var(--soft-fg)}
+.scene .frame{background:var(--mon);overflow:hidden}
+.scene .frame img,.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.ph{position:relative;min-height:0;min-width:0;overflow:hidden;background:var(--mon)}
+.ph.contain img{object-fit:contain}
+.ph .badge,.cv .badge{position:absolute;z-index:1;left:8px;top:8px;font-family:var(--f-mono);font-size:.66rem;letter-spacing:.06em;color:#fff;background:rgba(0,0,0,.6);padding:3px 7px;border-radius:4px}
+.badge.rec{color:var(--rec)}
+.ph.zoom{cursor:zoom-in}
+.ph.zoom::after{content:"⤢ Klik untuk perbesar";position:absolute;right:8px;bottom:8px;z-index:1;font-family:var(--f-mono);font-size:.64rem;color:#fff;background:rgba(0,0,0,.6);padding:3px 7px;border-radius:4px;opacity:.75;transition:opacity .2s}
+.ph.zoom:hover::after,.ph.zoom:focus-visible::after{opacity:1;background:var(--tungsten);color:var(--ink)}
+#lb{position:fixed;inset:0;z-index:80;background:rgba(6,6,5,.94);display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+#lb .lb-top{display:flex;justify-content:space-between;align-items:center;gap:12px;font-family:var(--f-mono);font-size:.78rem;color:var(--soft-fg)}
+#lb .lb-img{min-height:0;display:grid;place-items:center}
+#lb img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#lb .lb-cap{text-align:center;color:var(--soft-fg);font-size:.92rem;max-width:80ch;justify-self:center}
+#lb .lb-nav{display:flex;gap:8px}
+/* Kamera LCD */
+.cam-body{position:relative;min-height:0;background:linear-gradient(160deg,#2b2b2e,#111113 70%);border-radius:var(--r-md) var(--r-md) 0 0;padding:12px 10px 12px 12px;display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.lcd{position:relative;border-radius:5px;overflow:hidden;background:#000;box-shadow:0 0 0 2px #050505,0 0 0 3px #3a3a3d;min-height:0}
+.lcd .cv{position:absolute;inset:0}
+.osd{position:absolute;inset:0;z-index:1;pointer-events:none;font-family:var(--f-mono);font-size:.6rem;line-height:1.3;color:#fff;text-shadow:0 1px 2px #000,0 0 4px rgba(0,0,0,.8);letter-spacing:.03em}
+.osd .row{position:absolute;left:8px;right:8px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.osd .t{top:6px}.osd .b{bottom:6px;align-items:flex-end}
+.osd .rec{color:var(--rec);font-weight:600}
+.osd .oside{position:absolute;left:8px;top:50%;transform:translateY(-50%);display:grid;gap:5px}
+.osd .oside span{background:rgba(0,0,0,.35);padding:1px 4px;border-radius:2px}
+.osd .third{position:absolute;inset:0;background:linear-gradient(90deg,transparent calc(33.3% - .5px),rgba(255,255,255,.18) 33.3%,transparent calc(33.3% + .5px),transparent calc(66.6% - .5px),rgba(255,255,255,.18) 66.6%,transparent calc(66.6% + .5px)),linear-gradient(180deg,transparent calc(33.3% - .5px),rgba(255,255,255,.18) 33.3%,transparent calc(33.3% + .5px),transparent calc(66.6% - .5px),rgba(255,255,255,.18) 66.6%,transparent calc(66.6% + .5px))}
+.osd .af{position:absolute;left:39%;top:18%;width:22%;height:30%;border:1.5px solid var(--ok);border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.osd .af::after{content:"AF";position:absolute;top:-13px;left:0;font-size:.55rem;color:var(--ok)}
+.osd .meters{display:grid;gap:3px;width:70px}
+.osd .meters div{display:grid;grid-template-columns:auto 1fr;gap:4px;align-items:center}
+.osd .meters i{height:4px;border-radius:1px;background:linear-gradient(90deg,var(--ok) 0 70%,#f5d547 70% 88%,var(--rec) 88%);clip-path:inset(0 var(--m) 0 0)}
+.osd .hist{width:58px;height:24px;display:flex;align-items:flex-end;gap:1px;background:rgba(0,0,0,.35);padding:2px;border-radius:2px}
+.osd .hist i{flex:1;background:rgba(255,255,255,.75)}
+.osd .bat{display:inline-block;width:18px;height:8px;border:1px solid #fff;border-radius:1px;position:relative;vertical-align:-1px;margin-right:3px}
+.osd .bat::after{content:"";position:absolute;left:1px;top:1px;bottom:1px;width:70%;background:#fff}
+.cam-btns{display:grid;align-content:start;justify-items:center;gap:9px;padding-top:2px}
+.cam-btns span{display:grid;justify-items:center;gap:2px;font-family:var(--f-mono);font-size:.5rem;color:#9a9aa0;letter-spacing:.05em}
+.cam-btns span::before{content:"";width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4a4a4f,#1b1b1d);box-shadow:0 1px 0 rgba(255,255,255,.08),0 2px 3px rgba(0,0,0,.6)}
+.cam-btns .recb::before{background:radial-gradient(circle at 35% 30%,#ff7a70,#b4231a);box-shadow:0 0 0 2px #1b1b1d,0 0 0 3px #444}
+.cam-btns .dial::before{width:30px;height:30px;background:repeating-conic-gradient(#2a2a2d 0 6deg,#18181a 6deg 12deg);border:2px solid #333}
+.slbl{position:absolute;z-index:1;transform:translate(-50%,-100%);font-family:var(--f-mono);font-size:.66rem;font-weight:600;letter-spacing:.06em;color:var(--ink);background:var(--tungsten);padding:2px 6px;border-radius:4px;white-space:nowrap;pointer-events:none}
+.src{font-family:var(--f-mono);font-size:.66rem;color:var(--muted);letter-spacing:.04em}
+.fig.wide{grid-column:span 2}
+.defs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.defs div{padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);display:grid;gap:2px}
+.defs b{font-size:.92rem} .defs span{font-size:.82rem;color:var(--soft-fg)}
+.lamprow{display:grid;grid-template-columns:auto minmax(0,1fr) 44px;gap:8px;align-items:center}
+.lamprow output{font-family:var(--f-mono);font-size:.78rem;color:var(--tungsten);text-align:right}
+.lamprow input:disabled{opacity:.35}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:.82rem}
+.chip .sw{width:12px;height:12px;border-radius:50%;border:1px solid rgba(255,255,255,.2)}
+.chip[aria-pressed="true"]{border-color:var(--tungsten)}
+.kbar{height:26px;border-radius:var(--r-sm);background:linear-gradient(90deg,#ff8a1f,#ffb35c 18%,#ffd8a8 32%,#fff3e6 45%,#f3f5ff 55%,#cfdcff 72%,#a9c3ff 100%);border:1px solid var(--line)}
+.kscale{position:relative;height:40px}
+.kscale div{position:absolute;transform:translateX(-50%);display:grid;justify-items:center;text-align:center;font-size:.68rem;color:var(--muted);width:90px;line-height:1.2}
+.kscale div::before{content:"";width:1px;height:6px;background:var(--muted)}
+.kscale b{font-family:var(--f-mono);font-size:.7rem;color:var(--fg)}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dots{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center}
+.dots button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 10px;font-size:.74rem;color:var(--muted);cursor:pointer;white-space:nowrap}
+.dots button[aria-current="true"]{border-color:var(--tungsten);color:var(--fg);background:var(--panel-2)}
+.task{display:grid;grid-template-columns:1fr 1fr;gap:14px;min-height:0}
+.task ol{margin:0;padding-left:18px;display:grid;gap:5px;color:var(--soft-fg);font-size:.9rem}
+.check{display:grid;gap:7px}
+.check label{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel-2);cursor:pointer;font-size:.88rem}
+.check input{accent-color:var(--ok);width:17px;height:17px;margin-top:2px;flex:none}
+
+/* ---------- Lab ---------- */
+.lab{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 330px;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--panel)}
+.monitor{background:var(--mon);display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-width:0;min-height:0}
+.mon-bar,.mon-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 12px;font-family:var(--f-mono);font-size:.7rem;color:#d8d2c8;letter-spacing:.08em;background:#0a0a09}
+.mon-bar{border-bottom:1px solid #222}.mon-foot{border-top:1px solid #222;color:#bdb5a9;justify-content:flex-start}
+.mon-bar .rec{display:flex;align-items:center;gap:6px;color:var(--rec)}
+.ctrl{padding:16px;display:grid;gap:14px;align-content:start;min-width:0;min-height:0;overflow:auto;border-left:1px solid var(--line)}
+.ctrl h3{font-size:1.05rem}
+.seg{display:flex;flex-wrap:wrap;gap:5px}
+.seg button{padding:6px 10px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);cursor:pointer;font-size:.82rem;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--tungsten);color:var(--ink);border-color:var(--tungsten)}
+.seg.blue button[aria-pressed="true"]{background:var(--daylight);border-color:var(--daylight)}
+.readout{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:7px;font-size:.88rem}
+.readout p{color:var(--soft-fg)}
+.readout .big{font-family:var(--f-mono);font-size:1.6rem;font-weight:600;line-height:1}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:.84rem;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:600}
+.plot{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm);width:100%;height:auto;max-height:170px}
+.plot text{font-family:var(--f-mono);font-size:9px;fill:var(--muted)}
+.lamp-row{display:grid;grid-template-columns:auto 1fr;gap:7px 8px;align-items:center}
+.toggle{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);cursor:pointer;font-size:.84rem;font-weight:600;min-width:112px}
+.toggle i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.toggle[aria-pressed="true"]{border-color:var(--tungsten)}
+.toggle[aria-pressed="true"] i{background:var(--tungsten);box-shadow:0 0 8px var(--tungsten)}
+.swatches{display:flex;gap:8px;align-items:center}
+.swatches span{width:36px;height:36px;border-radius:8px;border:1px solid rgba(255,255,255,.18);flex:none}
+.gels{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.gel{display:grid;gap:4px;justify-items:center;padding:8px 4px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);cursor:pointer;font-size:.74rem;font-weight:600}
+.gel i{width:22px;height:22px;border-radius:50%}
+.gel[aria-pressed="true"]{border-color:var(--fg);background:var(--line)}
+.calc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;min-height:0}
+
+/* ---------- Quiz ---------- */
+.qwrap{height:100%;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;min-height:0}
+.qcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);display:grid;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden;min-height:0}
+.q-top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);font-family:var(--f-mono);font-size:.76rem;color:var(--muted)}
+.q-prog{height:4px;background:var(--line)}
+.q-prog i{display:block;height:100%;background:var(--tungsten);transition:width .3s}
+.q-body{padding:18px;display:grid;gap:12px;align-content:start;overflow:auto;min-height:0}
+.q-body h3{font-family:var(--f-body);font-size:clamp(1rem,2.3vh,1.15rem);font-weight:700;line-height:1.4}
+.opts{display:grid;gap:7px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:10px 12px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);cursor:pointer;font-size:.93rem}
+.opt:hover:not(:disabled){border-color:var(--muted)}
+.opt .l{font-family:var(--f-mono);font-weight:600;color:var(--tungsten);flex:none;width:16px}
+.opt:disabled{cursor:default}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)} .opt.right .l{color:var(--ok)}
+.opt.wrong{border-color:var(--rec);background:var(--rec-soft)} .opt.wrong .l{color:var(--rec)}
+.fb{border-radius:var(--r-sm);padding:10px 12px;font-size:.88rem;display:grid;gap:2px}
+.fb.good{background:var(--ok-soft);border:1px solid rgba(93,222,154,.4)}
+.fb.bad{background:var(--rec-soft);border:1px solid rgba(255,90,78,.4)}
+.fb b{font-family:var(--f-display);font-size:1rem}
+.q-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.qside{display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;min-height:0}
+.board{display:grid;gap:8px}
+.qdots{display:flex;gap:5px;flex-wrap:wrap}
+.qdots i{width:22px;height:8px;border-radius:99px;background:var(--line)}
+.qdots i.ok{background:var(--ok)} .qdots i.no{background:var(--rec)} .qdots i.now{background:var(--tungsten)}
+.qmon{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.score{font-family:var(--f-display);font-size:clamp(3rem,10vh,5rem);font-weight:800;line-height:1}
+.score small{font-size:.4em;color:var(--muted)}
+.review{display:grid;gap:7px;align-content:start;overflow:auto;min-height:0;padding-right:4px}
+.review div{border:1px solid var(--line);border-left-width:3px;border-radius:var(--r-sm);padding:8px 10px;font-size:.84rem;background:var(--panel-2)}
+.review div.ok{border-left-color:var(--ok)} .review div.no{border-left-color:var(--rec)}
+.review div p{color:var(--muted)}
+.cta-row{display:flex;gap:10px;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--panel-2);border:1px solid var(--tungsten);color:var(--fg);padding:9px 16px;border-radius:999px;font-weight:700;opacity:0;pointer-events:none;transition:.3s;z-index:70;font-size:.9rem}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- Layar kecil / portrait: boleh scroll ---------- */
+@media (max-width:1023px),(max-height:579px){
+  body{overflow:auto}
+  #gate,#app{height:auto;grid-template-columns:1fr}
+  .gate-stage{min-height:56vh}
+  .side{overflow:visible}
+  .panel,.slide,.materi,.lab,.qwrap,.home{height:auto}
+  .split,.lab,.qwrap,.home,.task,.calc{grid-template-columns:1fr}
+  .chapters{grid-template-columns:1fr}
+  .figs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .figs.g2x3{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none}
+  .cv,.ph{aspect-ratio:4/3}
+  .fig.wide{grid-column:auto}
+  .defs{grid-template-columns:1fr}
+  .chap .cv,.fig .cv{aspect-ratio:4/3}
+  .scenes{grid-template-rows:none}
+  .scene .frame{min-height:80px}
+  .ctrl{border-left:0;border-top:1px solid var(--line)}
+  .col{overflow:visible}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<!-- ================= GATE ================= -->
+<section id="gate" aria-label="Halaman pembuka">
+  <div class="gate-stage">
+    <div class="cv"><canvas id="gateCv" aria-label="Patung dada disinari lampu"></canvas></div>
+    <span class="gate-hint"><span class="dot"></span>GERAKKAN KURSOR UNTUK MENGGESER LAMPU</span>
+    <div class="gate-shade" aria-hidden="true"></div>
+    <div class="gate-title">
+      <span class="eyebrow">Media Pembelajaran Interaktif · Pencahayaan</span>
+      <span class="gate-hello">Selamat datang di</span>
+      <h1>Lighting<br>Lab</h1>
+      <p>Studio virtual untuk belajar tata cahaya seperti di lokasi syuting: baca materi, main lampu di simulator, lalu kerjakan latihan.</p>
+    </div>
+  </div>
+  <form class="gate-form" id="gateForm" novalidate>
+    <div class="school">
+      <img src="img/logo-smkn7.png" alt="Logo SMK Negeri 7 Surakarta" width="56" height="55">
+      <div><b class="js-school"></b><span>Konsentrasi Keahlian Broadcasting &amp; Perfilman</span></div>
+    </div>
+    <div class="welcome">
+      <h2>Selamat datang di Lighting Lab!</h2>
+      <p>Halo, calon kru produksi! Di studio virtual ini kamu akan belajar <b>karakteristik</b>, <b>arah</b>, dan <b>warna cahaya</b> lewat materi, simulator lampu, dan latihan soal. Isi identitasmu dulu untuk mulai.</p>
+    </div>
+    <div class="field"><label for="fNama">Nama lengkap</label><input type="text" id="fNama" autocomplete="name" placeholder="contoh: Dimas Prasetyo" maxlength="60"></div>
+    <div class="field"><label for="fKelas">Kelas</label><input type="text" id="fKelas" list="kelasList" placeholder="contoh: XI Broadcasting 1" maxlength="40">
+      <datalist id="kelasList"><option value="X Broadcasting 1"><option value="X Broadcasting 2"><option value="XI Broadcasting 1"><option value="XI Broadcasting 2"><option value="XII Broadcasting 1"><option value="XII Broadcasting 2"></datalist></div>
+    <div class="field"><label for="fAbsen">No. absen <span>opsional</span></label><input type="number" id="fAbsen" min="1" max="60" placeholder="contoh: 12"></div>
+    <p class="err" id="gateErr" aria-live="polite"></p>
+    <button class="btn primary" type="submit">Masuk Studio →</button>
+    <div class="slate"><div><small>Mata pelajaran</small><span>Pencahayaan · KD 3.17, 3.21, 3.22</span></div><div><small>Pengajar</small><span>Noves Hendiansa, S.Sn.</span></div></div>
+  </form>
+</section>
+
+<!-- ================= APP ================= -->
+<div id="app" hidden>
+  <aside class="side">
+    <div class="brand"><img src="img/logo-smkn7.png" alt="Logo SMK Negeri 7 Surakarta" width="26" height="25"><div><span>LIGHTING LAB</span><small>SMK N 7 SURAKARTA</small></div><span class="dot" aria-hidden="true" style="margin-left:auto"></span></div>
+    <div class="who"><b id="sNama"></b><span id="sKelas"></span><button type="button" id="btnGanti">Ganti siswa</button></div>
+    <nav class="nav" aria-label="Bab">
+      <button type="button" data-go="home"><span class="k">MULAI</span><span class="t">Beranda</span></button>
+      <button type="button" data-go="bab-1"><span class="k">KD 3.17 · BAB 1</span><span class="t">Karakteristik Lighting</span><span class="meter"><span class="bar"><i data-meter="bab-1"></i></span><span data-best="bab-1">-</span></span></button>
+      <button type="button" data-go="bab-2"><span class="k">KD 3.21 · BAB 2</span><span class="t">Arah Cahaya</span><span class="meter"><span class="bar"><i data-meter="bab-2"></i></span><span data-best="bab-2">-</span></span></button>
+      <button type="button" data-go="bab-3"><span class="k">KD 3.22 · BAB 3</span><span class="t">Warna Cahaya</span><span class="meter"><span class="bar"><i data-meter="bab-3"></i></span><span data-best="bab-3">-</span></span></button>
+    </nav>
+    <div class="side-foot"><span>TOTAL XP</span><span class="xp" id="xpTotal">0</span><span id="tc">00:00:00:00</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="mhead">
+      <div><span class="kd" id="hKd">STUDIO</span><h1 id="hTitle">Beranda</h1></div>
+      <div class="subtabs" id="subtabs" role="tablist" hidden>
+        <button type="button" role="tab" data-tab="materi">Materi</button>
+        <button type="button" role="tab" data-tab="lab">Lab</button>
+        <button type="button" role="tab" data-tab="latihan">Latihan Soal</button>
+      </div>
+    </header>
+
+    <div class="stage">
+      <!-- HOME -->
+      <section class="panel" id="p-home">
+        <div class="home">
+          <div class="card hello">
+            <div style="display:grid;gap:8px"><span class="tag">Selamat datang di Lighting Lab</span><h2 id="hello">Halo!</h2><p>Studio virtual pencahayaan untuk siswa Broadcasting &amp; Perfilman <span class="js-school"></span>. Pilih bab di samping untuk mulai belajar.</p></div>
+            <div class="stats">
+              <div class="stat"><b id="stXp">0</b><span>Total XP</span></div>
+              <div class="stat"><b id="stAvg">-</b><span>Rata-rata nilai</span></div>
+            </div>
+            <div class="flow">
+              <div><b>Baca materi</b><span>Per slide, pakai tombol Berikutnya.</span></div>
+              <div><b>Main di Lab</b><span>Geser lampu, lihat efeknya di patung.</span></div>
+              <div><b>Kerjakan latihan</b><span>10 soal per bab, ada pembahasan.</span></div>
+              <div><b>Unduh hasil PDF</b><span>Kumpulkan ke guru setelah selesai.</span></div>
+            </div>
+          </div>
+          <div class="chapters">
+            <button class="chap" type="button" data-go="bab-1"><div class="cv"><canvas data-sc="hard"></canvas></div><div class="body"><span class="kd">KD 3.17 · BAB 1</span><h3>Karakteristik Lighting</h3><ul><li>Fungsi &amp; tujuan tata cahaya</li><li>Daylight vs Tungsten</li><li>Hard light vs Soft light</li></ul></div></button>
+            <button class="chap" type="button" data-go="bab-2"><div class="cv"><canvas data-sc="sideBack"></canvas></div><div class="body"><span class="kd">KD 3.21 · BAB 2</span><h3>Arah Cahaya</h3><ul><li>Available vs Artificial</li><li>Direct, Diffused, Reflected</li><li>Front, Back, Side, Top</li></ul></div></button>
+            <button class="chap" type="button" data-go="bab-3"><div class="cv"><canvas data-sc="tp"></canvas></div><div class="body"><span class="kd">KD 3.22 · BAB 3</span><h3>Warna Cahaya</h3><ul><li>Suhu warna &amp; white balance</li><li>Filter CTB, CTO &amp; gel</li><li>Three Point Lighting</li></ul></div></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== BAB 1 MATERI ===== -->
+      <section class="panel" id="p-bab-1-materi" hidden>
+        <div class="materi" data-bab="bab-1">
+          <div class="slides">
+            <div class="slide split" data-t="Penerangan">
+              <div class="col">
+                <span class="eyebrow">Scene 1 · Penerangan</span>
+                <h2>Terang saja tidak cukup.</h2>
+                <p>Istilah <b>penerangan</b> bukan sekadar memberi efek terang supaya objek terlihat, tapi memberi penerangan pada <b>bagian tertentu</b> dengan <b>intensitas tertentu</b>.</p>
+                <p>Tidak semua area di set punya tingkat terang yang sama. Semuanya diatur dengan tujuan tertentu supaya pesan adegan makin tegas.</p>
+                <span class="eyebrow">Tujuan pembelajaran</span>
+                <div class="goals">
+                  <div class="goal"><small>01</small><b>Memahami</b><p>karakteristik lighting</p></div>
+                  <div class="goal"><small>02</small><b>Membandingkan</b><p>karakteristik lighting</p></div>
+                  <div class="goal"><small>03</small><b>Menunjukkan</b><p>karakteristik lighting</p></div>
+                  <div class="goal"><small>04</small><b>Merancang</b><p>karakteristik lighting</p></div>
+                </div>
+              </div>
+              <div class="figs" style="--n:2">
+                <div class="fig"><div class="cv"><canvas data-sc="flat"></canvas></div><div class="cap"><b>Diterangi rata</b><span>Semua bagian sama terang → wajah terlihat datar.</span></div></div>
+                <div class="fig"><div class="cv"><canvas data-sc="dim"></canvas></div><div class="cap"><b>Diatur terang-gelapnya</b><span>Ada sisi terang dan gelap → wajah berdimensi.</span></div></div>
+              </div>
+            </div>
+
+            <div class="slide rows" data-t="Fungsi" hidden>
+              <div class="col"><span class="eyebrow">Scene 2 · Fungsi tata cahaya</span><h2>Tiga fungsi utama cahaya.</h2></div>
+              <div class="figs" style="--n:3">
+                <div class="fig"><div class="cv"><canvas data-sc="dim"></canvas></div><div class="cap"><b>Membentuk Dimensi</b><span>Membagi sisi gelap dan terang objek. Kalau intensitasnya sama semua, gambar jadi datar.</span></div></div>
+                <div class="fig"><div class="cv"><canvas data-sc="pick"></canvas></div><div class="cap"><b>Sebagai Pemilihan</b><span>Hanya bagian mata yang disinari, sisanya gelap. Perhatian penonton langsung tertuju ke area yang dipilih.</span></div></div>
+                <div class="fig"><div class="cv"><canvas data-sc="atmo"></canvas></div><div class="cap"><b>Membangun Atmosfer</b><span>Menghadirkan suasana dan emosi yang dikehendaki sutradara.</span></div></div>
+              </div>
+            </div>
+
+            <div class="slide split" data-t="Tujuan" hidden>
+              <div class="col">
+                <span class="eyebrow">Scene 3 · Tujuan tata cahaya</span>
+                <h2>Teknik + artistik.</h2>
+                <p>Penata cahaya harus menguasai pencahayaan secara <b>teknik</b> dan <b>artistik</b>, karena tata cahaya adalah elemen penting dalam produksi televisi dan film.</p>
+                <p class="quote">Lighting yang baik adalah bila hasilnya terlihat natural atau tercapai tujuannya.</p>
+                <p><b>3 fungsi cahaya dalam cerita:</b> membangun visual mood, membangun atmosfer, dan memberi makna cerita. Tebak dulu mood tiap adegan di samping.</p>
+              </div>
+              <div class="scenes">
+                <div class="scene"><div class="frame"><img src="img/toko.jpg" alt="Adegan Cek Toko Sebelah dengan pencahayaan terang merata"><span>Cek Toko Sebelah (2016)</span></div><div class="txt"><b>Visual mood: terang, rata, hangat</b><p>Mood santai dan ceria: drama komedi keluarga.</p></div></div>
+                <div class="scene"><div class="frame"><img src="img/exorcist.jpg" alt="Adegan The Exorcist, rumah berkabut dengan sorot cahaya biru"><span>The Exorcist (1973)</span></div><div class="txt"><b>Atmosfer: gelap, biru, berkabut</b><p>Mencekam, ada yang “menunggu” di dalam rumah.</p></div></div>
+                <div class="scene"><div class="frame"><img src="img/shawshank.jpg" alt="Adegan The Shawshank Redemption dengan cahaya jendela hangat"><span>The Shawshank Redemption (1994)</span></div><div class="txt"><b>Makna cerita: cahaya jendela hangat</b><p>Harapan di tengah suasana penjara.</p></div></div>
+                <div class="scene"><div class="frame"><img src="img/kane.jpg" alt="Adegan Citizen Kane dengan berkas cahaya keras dan siluet tokoh"><span>Citizen Kane (1941)</span></div><div class="txt"><b>Makna cerita: berkas cahaya, siluet</b><p>Misteri, kekuasaan, jarak antartokoh.</p></div></div>
+              </div>
+            </div>
+
+            <div class="slide split" data-t="Daylight & Tungsten" hidden>
+              <div class="col">
+                <span class="eyebrow">Scene 4 · Jenis lighting</span>
+                <h2>Daylight vs Tungsten.</h2>
+                <p>Berdasarkan temperaturnya, lampu produksi dibagi dua: <b class="dl">Daylight</b> (putih, ±5.000–5.600 K) dan <b class="tg">Tungsten</b> (kuning, 3.200 K).</p>
+                <p><b>Sebutkan jenis lighting di lingkunganmu!</b> Ketuk sumber cahaya di bawah.</p>
+                <div class="chips" id="envChips"></div>
+                <div class="callout" id="envOut" aria-live="polite"><b>Pilih satu sumber cahaya.</b><p>Lihat suhu warnanya dan golongannya.</p></div>
+              </div>
+              <div class="fig"><div class="ph contain"><img src="img/daytung.jpg" alt="Dua lampu menyinari dinding bata: kiri daylight putih, kanan tungsten kuning"></div><div class="cap"><b><span class="dl">Kiri: Daylight (putih)</span> · <span class="tg">Kanan: Tungsten (kuning)</span></b><span>Dua lampu menyinari dinding yang sama, difoto dengan kamera yang sama. Perbedaan warnanya berasal dari suhu warna lampu.</span><span class="src">Sumber gambar: bahan ajar KD 3.17</span></div></div>
+            </div>
+
+            <div class="slide rows3" data-t="Hard & Soft" hidden>
+              <div class="col"><span class="eyebrow">Scene 5 · Karakter cahaya</span><h2>Hard light vs Soft light.</h2></div>
+              <div class="figs" style="--n:2">
+                <div class="fig"><div class="ph contain"><img src="img/hard.jpg" alt="Foto potret dengan hard light, bayangan tegas di dinding"><span class="badge">HARD LIGHT</span></div><div class="cap"><b>Hard Light</b><span>Lihat bayangan tegas di dinding belakang dan sisi wajah. Sumber intensitas tinggi, bersifat spot, kontras tinggi.</span></div></div>
+                <div class="fig"><div class="ph contain"><img src="img/soft.jpg" alt="Foto potret yang sama dengan soft light, bayangan halus"><span class="badge">SOFT LIGHT</span></div><div class="cap"><b>Soft Light</b><span>Bayangan di dinding hampir hilang, wajah terang merata. Sumber terpendar dan halus, kontras tipis.</span></div></div>
+              </div>
+              <div class="callout"><b>Karakter cahaya dipengaruhi banyaknya cahaya yang mengenai subjek, tergantung 3 hal:</b><p>1. Intensitas cahaya · 2. Efisiensi penyebaran cahaya · 3. Jarak sumber cahaya dan subjek. Buktikan di tab <b>Lab</b>.</p></div>
+            </div>
+
+            <div class="slide rows" data-t="Tugas" hidden>
+              <div class="col"><span class="eyebrow">Tugas &amp; refleksi</span><h2>Bawa ke kelas.</h2></div>
+              <div class="task">
+                <div class="card"><span class="tag">Tugas kelompok</span><ol><li>Bagi kelas menjadi 3 kelompok kecil.</li><li>Identifikasi karakteristik lighting pada gambar yang dipilih (hard/soft, daylight/tungsten, fungsinya).</li><li>Tulis kesimpulan diskusi dan presentasikan di depan kelas.</li></ol></div>
+                <div class="card"><span class="tag">Cek pemahaman</span><div class="check">
+                  <label><input type="checkbox" id="c1a"> Aku bisa menjelaskan fungsi cahaya dalam produksi TV/Film.</label>
+                  <label><input type="checkbox" id="c1b"> Aku bisa menyebut 2 jenis cahaya berdasarkan temperatur warnanya.</label>
+                  <label><input type="checkbox" id="c1c"> Aku bisa menyebut 2 karakter dasar lighting.</label>
+                  <label><input type="checkbox" id="c1d"> Aku tahu 3 faktor yang memengaruhi karakter lighting.</label>
+                </div></div>
+              </div>
+            </div>
+          </div>
+          <div class="pager"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="p-bab-1-lab" hidden>
+        <div class="lab">
+          <div class="monitor">
+            <div class="mon-bar"><span class="rec"><span class="dot"></span>REC</span><span>CAM A · STUDIO MINI</span><span class="js-tc">00:00:00:00</span></div>
+            <div class="cv"><canvas id="cv1" aria-label="Simulasi patung dengan satu lampu"></canvas></div>
+            <div class="mon-foot"><span id="b1foot">KEY 45°</span></div>
+          </div>
+          <div class="ctrl">
+            <h3>Lab 1 · Studio Mini</h3>
+            <p class="muted" style="font-size:.84rem">Satu lampu key 45° depan-kanan. Perhatikan bayangan hidung, pipi, dan dinding.</p>
+            <div class="field"><label for="b1soft">Ukuran / difusi sumber <span id="b1softV"></span></label><input id="b1soft" type="range" min="0" max="100" value="8"><small>Kiri: lampu kecil (hard) · Kanan: softbox besar (soft)</small></div>
+            <div class="field"><label for="b1dist">Jarak lampu ke subjek <span id="b1distV"></span></label><input id="b1dist" type="range" min="10" max="40" value="15"></div>
+            <div class="field"><label for="b1beam">Sebaran cahaya <span id="b1beamV"></span></label><input id="b1beam" type="range" min="0" max="100" value="45"><small>Kiri: spot (terpusat) · Kanan: flood (menyebar)</small></div>
+            <div class="field"><label for="b1pow">Intensitas lampu <span id="b1powV"></span></label><input id="b1pow" type="range" min="20" max="100" value="80"></div>
+            <div class="readout" aria-live="polite" id="b1out"></div>
+          </div>
+        </div>
+      </section>
+      <section class="panel" id="p-bab-1-latihan" hidden><div class="qwrap" data-quiz="bab-1"></div></section>
+
+      <!-- ===== BAB 2 MATERI ===== -->
+      <section class="panel" id="p-bab-2-materi" hidden>
+        <div class="materi" data-bab="bab-2">
+          <div class="slides">
+            <div class="slide split" data-t="Sumber cahaya">
+              <div class="col">
+                <span class="eyebrow">Scene 1 · Sumber cahaya</span>
+                <h2>Dari alam atau dari lampu?</h2>
+                <p><b>Available light / Cahaya Natural</b>: cahaya yang sudah ada di lokasi, seperti matahari, langit, atau lampu ruangan.</p>
+                <p><b>Artificial light / Cahaya Tambahan</b>: lampu yang dibawa dan dipasang kru, seperti LED, fresnel, softbox.</p>
+                <p>Gambar mana yang lebih bagus? Dengan natural light saat senja, langit bagus tapi wajah gelap. Ditambah artificial light, wajah terang dan suasana senja tetap terasa.</p>
+                <span class="eyebrow">Tujuan pembelajaran</span>
+                <div class="goals">
+                  <div class="goal"><small>01</small><b>Memahami</b><p>materi arah cahaya</p></div>
+                  <div class="goal"><small>02</small><b>Membandingkan</b><p>arah cahaya</p></div>
+                  <div class="goal"><small>03</small><b>Menunjukkan</b><p>arah cahaya</p></div>
+                  <div class="goal"><small>04</small><b>Mengombinasikan</b><p>arah cahaya</p></div>
+                </div>
+              </div>
+              <div class="figs" style="--n:2">
+                <div class="fig"><div class="ph"><img src="img/natural.jpg" style="object-position:50% 50%" alt="Model di atas perahu saat senja hanya dengan cahaya natural"><span class="badge">NATURAL LIGHT</span></div><div class="cap"><b>Natural light saja</b><span>Langit terang, tapi subjek kurang menonjol.</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/artificial.jpg" alt="Model yang sama dengan tambahan lampu, langit senja lebih dramatis"><span class="badge">+ ARTIFICIAL LIGHT</span></div><div class="cap"><b>Natural + artificial light</b><span>Subjek terang dan tegas, langit senja lebih dramatis.</span></div></div>
+              </div>
+            </div>
+
+            <div class="slide rows" data-t="Jenis cahaya" hidden>
+              <div class="col"><span class="eyebrow">Scene 2 · Jenis cahaya berdasarkan arahnya</span><h2>Langsung, disebar, atau dipantul.</h2></div>
+              <div class="figs" style="--n:3">
+                <div class="fig"><div class="ph"><img src="img/direct.jpg" alt="Ibu dan anak di bawah sinar matahari langsung, bayangan tegas di wajah"><span class="badge">DIRECT</span></div><div class="cap"><b>Direct Light · Cahaya Langsung</b><span>Matahari langsung ke objek. Keras, bayangan tegas di wajah, kontras tinggi.</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/diffused.jpg" alt="Kain diffuser besar dan softbox menyinari model"><span class="badge">DIFFUSED</span></div><div class="cap"><b>Diffused Light · Tidak Langsung</b><span>Lewat kain diffuser atau softbox. Lembut, bayangan halus.</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/reflected.jpg" style="object-position:38% 50%" alt="Fotografer memantulkan flash ke papan reflektor"><span class="badge">REFLECTED</span></div><div class="cap"><b>Reflected Light · Pantulan</b><span>Flash dipantulkan ke papan reflektor. Lembut, warna ikut permukaan pantul.</span></div></div>
+              </div>
+            </div>
+
+            <div class="slide rows" data-t="4 arah cahaya" hidden>
+              <div class="col"><span class="eyebrow">Scene 3 · Arah cahaya</span><h2>Empat arah dasar.</h2></div>
+              <div class="figs" style="--n:4">
+                <div class="fig"><div class="ph"><img src="img/front.jpg" style="object-position:28% 40%" alt="Wajah aktor disinari dari depan, terlihat datar"><span class="badge">FRONT</span></div><div class="cap"><b>Front Light</b><span>Flat/datar, tanpa dimensi dan volume. Kesan membosankan.</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/back.jpg" style="object-position:40% 40%" alt="Aktor dengan cahaya dari belakang, tepi rambut dan telinga bercahaya"><span class="badge">BACK</span></div><div class="cap"><b>Back Light</b><span>Memisahkan objek dari background. Efek rim light, siluet, halo.</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/side.jpg" style="object-position:42% 40%" alt="Wajah aktor disinari dari samping, separuh wajah gelap"><span class="badge">SIDE</span></div><div class="cap"><b>Side Light</b><span>Membentuk bayangan. Menonjolkan tekstur, dimensi, depth.</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/top.jpg" style="object-position:40% 40%" alt="Aktor disinari dari atas, mata dan bawah dagu gelap"><span class="badge">TOP</span></div><div class="cap"><b>Top Light</b><span>Warna terlihat natural, tapi gelap di bawah mata dan dagu.</span></div></div>
+              </div>
+            </div>
+
+            <div class="slide rows" data-t="Tugas" hidden>
+              <div class="col"><span class="eyebrow">Tugas &amp; refleksi</span><h2>Praktik arah cahaya.</h2></div>
+              <div class="task">
+                <div class="card"><span class="tag">Tugas praktik</span><ol><li>Bagi kelas menjadi 3 kelompok kecil.</li><li>Kombinasikan minimal 2 arah cahaya (front, back, side, top).</li><li>Buat desain layout tampak atas penempatan cahaya di lembar jawab (contoh: denah di tab Lab).</li><li>Tempatkan lighting sesuai arah yang dikombinasikan.</li><li>Lihat hasil di kamera, capture, lalu presentasikan.</li></ol></div>
+                <div class="card"><span class="tag">Cek pemahaman</span><div class="check">
+                  <label><input type="checkbox" id="c2a"> Aku bisa membedakan available light dan artificial light.</label>
+                  <label><input type="checkbox" id="c2b"> Aku tahu ciri direct, diffused, dan reflected light.</label>
+                  <label><input type="checkbox" id="c2c"> Aku bisa mengenali front, back, side, dan top light dari gambar.</label>
+                  <label><input type="checkbox" id="c2d"> Aku sudah mencoba kombinasi 2 arah cahaya.</label>
+                </div></div>
+              </div>
+            </div>
+          </div>
+          <div class="pager"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="p-bab-2-lab" hidden>
+        <div class="lab">
+          <div class="monitor">
+            <div class="mon-bar"><span class="rec"><span class="dot"></span>REC</span><span>CAM A · ARAH CAHAYA</span><span class="js-tc">00:00:00:00</span></div>
+            <div class="cv"><canvas id="cv2" aria-label="Simulasi arah cahaya pada patung"></canvas></div>
+            <div class="mon-foot"><span id="b2foot"></span></div>
+          </div>
+          <div class="ctrl">
+            <h3>Lab 2 · Kombinasi arah cahaya</h3>
+            <div class="field"><span class="lbl">Lampu &amp; intensitas <span>ketuk nama lampu: nyala/mati</span></span><div id="b2lamps" style="display:grid;gap:6px"></div></div>
+            <div class="field"><span class="lbl">Jenis cahaya</span><div class="seg blue" id="b2type"></div></div>
+            <svg class="plot" id="plot2" viewBox="0 0 240 200" role="img" aria-label="Denah tampak atas posisi lampu" style="height:130px;max-height:none;flex:none"></svg>
+            <div class="readout" aria-live="polite" id="b2out"></div>
+          </div>
+        </div>
+      </section>
+      <section class="panel" id="p-bab-2-latihan" hidden><div class="qwrap" data-quiz="bab-2"></div></section>
+
+      <!-- ===== BAB 3 MATERI ===== -->
+      <section class="panel" id="p-bab-3-materi" hidden>
+        <div class="materi" data-bab="bab-3">
+          <div class="slides">
+            <div class="slide rows3" data-t="Suhu warna">
+              <div class="col">
+                <span class="eyebrow">Scene 1 · Suhu warna</span>
+                <h2>Cahaya punya “suhu”, diukur dalam Kelvin.</h2>
+                <p><b>Tonal value</b> (warna cahaya) matahari berubah sepanjang hari. Suhu cahaya yang berbeda menghasilkan suhu warna yang berbeda pula. Semakin <b class="tg">rendah</b> Kelvin → makin <b class="tg">oranye/kemerahan</b>. Semakin <b class="dl">tinggi</b> Kelvin → makin <b class="dl">kebiruan</b>.</p>
+                <div><div class="kbar" aria-hidden="true"></div><div class="kscale" id="kscale"></div></div>
+              </div>
+              <div class="figs" style="--n:4">
+                <div class="fig"><div class="cv"><canvas data-sc="k1900"></canvas></div><div class="cap"><b>1.900 K</b><span>Lilin</span></div></div>
+                <div class="fig"><div class="cv"><canvas data-sc="k3200"></canvas></div><div class="cap"><b>3.200 K</b><span>Tungsten</span></div></div>
+                <div class="fig"><div class="cv"><canvas data-sc="k5600"></canvas></div><div class="cap"><b>5.600 K</b><span>Daylight</span></div></div>
+                <div class="fig"><div class="cv"><canvas data-sc="k9000"></canvas></div><div class="cap"><b>9.000 K</b><span>Langit biru / bayangan</span></div></div>
+              </div>
+              <div class="callout"><p>Semua gambar di atas difoto dengan white balance kamera <b>5.600 K</b>. Kamera, objek, dan waktunya sama, yang beda hanya suhu warna lampu. Cara menetralkannya: <b>white balance manual</b> (coba di tab Lab).</p></div>
+            </div>
+
+            <div class="slide split" data-t="CTB & CTO" hidden>
+              <div class="col">
+                <span class="eyebrow">Scene 2 · Filter CTB &amp; CTO</span>
+                <h2>Ubah suhu lampu pakai filter.</h2>
+                <p><b class="dl">CTB (Color to Blue)</b>: mengubah lampu tungsten menjadi seperti daylight.</p>
+                <p><b class="tg">CTO (Color to Orange)</b>: mengubah lampu daylight menjadi seperti tungsten.</p>
+                <p>Ukurannya <b>¼, ½, dan Full</b>. Ukuran ini <b>bukan besar lembarnya</b>, tapi tingkat kepekatan warnanya.</p>
+                <div class="field"><span class="lbl">Lampu awal</span><div class="seg" id="fSrc"></div></div>
+                <div class="field"><span class="lbl">Filter yang dipasang</span><div class="seg" id="fGel"></div></div>
+              </div>
+              <div class="fig"><div class="cv"><canvas id="cvF" aria-label="Hasil filter pada patung"></canvas></div><div class="cap" id="fOut" aria-live="polite"></div></div>
+            </div>
+
+            <div class="slide split" data-t="Gel & efek warna" hidden>
+              <div class="col">
+                <span class="eyebrow">Scene 3 · Filter light &amp; efek warna</span>
+                <h2>Gel warna = emosi.</h2>
+                <p><b>Filter light</b> (gel) adalah plastik warna untuk memberi warna pada cahaya. Dipasang di depan perangkat lighting untuk mengubah warna natural lampu sesuai kebutuhan.</p>
+                <p>Tiap warna memberi kesan berbeda. Coba gabungkan dengan mood adegan yang mau kamu buat.</p>
+                <div class="fig"><div class="ph" style="height:110px"><img src="img/gelfilter.jpg" alt="Lembaran dan gulungan filter gel berbagai warna"></div><div class="cap"><span>Contoh filter gel: lembaran, gulungan, dan filter bulat.</span></div></div>
+                <div class="callout"><b>Coba sendiri</b><p>Di tab <b>Lab → Gel Warna</b> kamu bisa ganti warna gel dan lihat penjelasannya.</p></div>
+              </div>
+              <div class="figs g2x3">
+                <div class="fig"><div class="ph"><img src="img/biru.jpg" alt="Kamar dengan cahaya biru"></div><div class="cap"><b>Biru</b><span>Tenang, menenangkan pikiran</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/hijau.jpg" alt="Ruang keluarga dengan cahaya hijau"></div><div class="cap"><b>Hijau</b><span>Relaksasi, menyeimbangkan emosi</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/oranye.jpg" alt="Ruang duduk dengan lampu neon oranye"></div><div class="cap"><b>Oranye</b><span>Hangat, akrab, bersahabat</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/magenta.jpg" alt="Ruangan dengan cahaya magenta"></div><div class="cap"><b>Magenta</b><span>Romantis, hangat</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/merah.jpg" alt="Kamar dengan cahaya merah"></div><div class="cap"><b>Merah</b><span>Agresif, eksotis</span></div></div>
+                <div class="fig"><div class="ph"><img src="img/ungu.jpg" alt="Ruang duduk dengan cahaya ungu"></div><div class="cap"><b>Ungu/Violet</b><span>Menenangkan, meditasi, misterius</span></div></div>
+              </div>
+            </div>
+
+            <div class="slide rows" data-t="Three Point" hidden>
+              <div class="col">
+                <span class="eyebrow">Scene 4 · Teknik dasar</span>
+                <h2>Three Point Lighting: penempatan dan hasilnya.</h2>
+                <div class="defs">
+                  <div><b class="tg">1 · Main / Key light</b><span>Cahaya utama, paling terang. Sekitar 45° di depan-samping subjek, sedikit dari atas.</span></div>
+                  <div><b>2 · Fill light</b><span>Cahaya pengisi di sisi berlawanan, lebih redup dan lembut untuk menipiskan bayangan.</span></div>
+                  <div><b class="dl">3 · Back light</b><span>Di belakang subjek, mengarah ke kepala dan bahu supaya terpisah dari background.</span></div>
+                </div>
+              </div>
+              <div class="figs" style="grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)">
+                <div class="fig"><div class="cv"><canvas data-sc="tpStudio" aria-label="Tampak studio: tiga lampu, kamera, dan patung"></canvas><span class="badge">TAMPAK STUDIO</span></div><div class="cap"><b>Penempatan lampu dan kamera</b><span>Kiri depan: key · kanan: fill · belakang patung: back · depan: kamera di atas tripod, menghadap subjek.</span></div></div>
+                <div class="fig">
+                  <div class="cam-body" aria-label="Layar LCD kamera menampilkan preview three point lighting">
+                    <div class="lcd">
+                      <div class="cv"><canvas data-sc="tpWhite"></canvas></div>
+                      <div class="osd" aria-hidden="true">
+                        <div class="third"></div>
+                        <div class="af"></div>
+                        <div class="row t"><span class="rec">● REC <span class="js-tc">00:00:00:00</span></span><span>4K 25p · XAVC S</span><span><i class="bat"></i>78%</span></div>
+                        <div class="oside"><span>M</span><span>ISO 400</span><span>1/50</span><span>F2.8</span><span>WB 5600K</span><span>ND 1/4</span></div>
+                        <div class="row b">
+                          <div class="meters"><div>CH1<i style="--m:38%"></i></div><div>CH2<i style="--m:44%"></i></div></div>
+                          <div class="hist"><i style="height:20%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:40%"></i><i style="height:62%"></i><i style="height:90%"></i><i style="height:48%"></i><i style="height:25%"></i><i style="height:12%"></i></div>
+                          <span>AF-C · 50mm<br>SD 120 MIN</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="cam-btns" aria-hidden="true"><span class="recb">REC</span><span>MENU</span><span>DISP</span><span>FN</span><span class="dial">ISO</span></div>
+                  </div>
+                  <div class="cap"><b>Preview di LCD kamera</b><span>Wajah berdimensi, bayangan tipis karena fill, tepi kepala bercahaya dari back light. Menu LCD: ISO, shutter 1/50, aperture F2.8, white balance 5600K, audio meter, histogram.</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="slide rows" data-t="Tugas" hidden>
+              <div class="col"><span class="eyebrow">Tugas &amp; refleksi</span><h2>Praktik warna cahaya.</h2></div>
+              <div class="task">
+                <div class="card"><span class="tag">Tugas praktik</span><ol><li>Bagi kelas menjadi 3 kelompok kecil.</li><li>Kombinasikan minimal 2 warna cahaya dengan rumus three point lighting (main, fill, back).</li><li>Buat desain layout tampak atas penempatan cahaya di lembar jawab.</li><li>Ubah warna lighting sesuai desain.</li><li>Lihat hasil di kamera, capture, lalu presentasikan.</li></ol></div>
+                <div class="card"><span class="tag">Cek pemahaman</span><div class="check">
+                  <label><input type="checkbox" id="c3a"> Aku bisa menjelaskan hubungan Kelvin dengan warna cahaya.</label>
+                  <label><input type="checkbox" id="c3b"> Aku tahu kapan memakai CTB dan kapan CTO.</label>
+                  <label><input type="checkbox" id="c3c"> Aku bisa memilih warna cahaya sesuai suasana adegan.</label>
+                  <label><input type="checkbox" id="c3d"> Aku bisa menyusun three point lighting.</label>
+                </div></div>
+              </div>
+            </div>
+          </div>
+          <div class="pager"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="p-bab-3-lab" hidden>
+        <div class="lab">
+          <div class="monitor">
+            <div class="mon-bar"><span class="rec"><span class="dot"></span>REC</span><span id="b3cam">CAM A · WHITE BALANCE</span><span class="js-tc">00:00:00:00</span></div>
+            <div class="cv"><canvas id="cv3" aria-label="Simulasi warna cahaya pada patung"></canvas></div>
+            <div class="mon-foot"><span id="b3foot"></span></div>
+          </div>
+          <div class="ctrl">
+            <div class="seg blue" id="b3mode"></div>
+            <div id="pane-wb">
+              <div class="field"><label for="wbK">Suhu warna lampu <span id="wbKV"></span></label><input id="wbK" type="range" min="1900" max="10000" step="100" value="3200"><small>Coba 3.200 K (tungsten), lalu 5.600 K (daylight).</small></div>
+              <div class="field" style="margin-top:12px"><span class="lbl">White balance kamera</span><div class="seg" id="wbCam"></div></div>
+              <div class="readout" aria-live="polite" id="wbOut" style="margin-top:12px"></div>
+            </div>
+            <div id="pane-gel" hidden>
+              <div class="field"><span class="lbl">Gel untuk key light</span><div class="gels" id="gels"></div></div>
+              <div class="readout" aria-live="polite" id="gelOut" style="margin-top:12px"></div>
+            </div>
+            <div id="pane-tp" hidden>
+              <div class="field" style="margin-bottom:12px"><span class="lbl">Tampilan monitor</span><div class="seg" id="tpView"></div></div>
+              <div class="lamp-row" id="tpRows"></div>
+              <svg class="plot" id="plot5" viewBox="0 0 240 200" role="img" aria-label="Denah three point lighting" style="margin-top:12px"></svg>
+              <div class="readout" aria-live="polite" id="tpOut" style="margin-top:12px"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="panel" id="p-bab-3-latihan" hidden><div class="qwrap" data-quiz="bab-3"></div></section>
+    </div>
+  </main>
+</div>
+<div id="lb" hidden role="dialog" aria-modal="true" aria-label="Tampilan gambar utuh">
+  <div class="lb-top"><span id="lbCount"></span><div class="lb-nav"><button class="btn" type="button" id="lbPrev" aria-label="Gambar sebelumnya">←</button><button class="btn" type="button" id="lbNext" aria-label="Gambar berikutnya">→</button><button class="btn primary" type="button" id="lbClose">Tutup ✕</button></div></div>
+  <div class="lb-img"><img id="lbImg" alt=""></div>
+  <p class="lb-cap" id="lbCap"></p>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+var SCHOOL="SMK Negeri 7 Surakarta", TEACHER="Noves Hendiansa, S.Sn.", KKM=75;
+var $=function(id){ return document.getElementById(id); };
+var fmt=function(n){ return Math.round(n).toLocaleString("id-ID"); };
+var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+document.querySelectorAll(".js-school").forEach(function(e){ e.textContent=SCHOOL; });
+function load(k,d){ try{ var v=localStorage.getItem("ll2_"+k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function save(k,v){ try{ localStorage.setItem("ll2_"+k,JSON.stringify(v)); }catch(e){} }
+function toast(m){ var t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove("show"); },2600); }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+
+/* ================= Warna ================= */
+function kelvinRGB(k){
+  var t=k/100,r,g,b;
+  if(t<=66){ r=255; g=99.4708025861*Math.log(t)-161.1195681661; b=t<=19?0:138.5177312231*Math.log(t-10)-305.0447927307; }
+  else { r=329.698727446*Math.pow(t-60,-0.1332047592); g=288.1221695283*Math.pow(t-60,-0.0755148492); b=255; }
+  var c=[r,g,b].map(function(v){ return Math.min(255,Math.max(0,v))/255; }), m=Math.max(c[0],c[1],c[2]);
+  return c.map(function(v){ return Math.max(0.04,v/m); });
+}
+function wbGain(k){ var c=kelvinRGB(k); return [c[1]/c[0],1,c[1]/c[2]]; }
+function toCss(c,s){ s=s==null?1:s; return "rgb("+c.map(function(v){ return Math.round(Math.min(1,Math.max(0,v*s))*255); }).join(",")+")"; }
+
+/* ================= Renderer patung (WebGL raymarch) ================= */
+var FS=[
+"#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif",
+"uniform vec2 uRes;uniform vec3 uLD[4];uniform vec3 uLC[4];uniform float uLS[4];uniform float uN;",
+"uniform vec3 uWB;uniform float uExp;uniform float uAmb;uniform float uPool;uniform vec3 uAlb;uniform vec3 uWall;",
+"uniform float uMode;uniform vec3 uLP[4];uniform vec2 uPoolC;uniform vec2 uPoolR;",
+"float sdBox(vec3 p,vec3 b){vec3 q=abs(p)-b;return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0);}",
+"float sdCyl(vec3 p,vec3 a,vec3 b,float r){vec3 ba=b-a;vec3 pa=p-a;float baba=dot(ba,ba);float paba=dot(pa,ba);float x=length(pa*baba-ba*paba)-r*baba;float y=abs(paba-baba*0.5)-baba*0.5;float x2=x*x;float y2=y*y*baba;float d=(max(x,y)<0.0)?-min(x2,y2*baba/baba):(((x>0.0)?x2:0.0)+((y>0.0)?y2:0.0));return sign(d)*sqrt(abs(d))/baba;}",
+"float sdEll(vec3 p,vec3 r){float k0=length(p/r);float k1=length(p/(r*r));return k0*(k0-1.0)/max(k1,1e-4);}",
+"float sdCap(vec3 p,vec3 a,vec3 b,float r){vec3 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);return length(pa-ba*h)-r;}",
+"float smin(float a,float b,float k){float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0);return mix(b,a,h)-k*h*(1.0-h);}",
+"float smax(float a,float b,float k){return -smin(-a,-b,k);}",
+"float bust(vec3 p){",
+" float bb=length(p-vec3(0.0,-0.3,0.0))-2.4; if(bb>1.4) return bb;",
+" vec3 q=vec3(abs(p.x),p.y,p.z);",
+" float d=sdEll(p-vec3(0.0,0.66,-0.08),vec3(0.60,0.66,0.70));",
+" d=smin(d,sdEll(p-vec3(0.0,0.30,0.12),vec3(0.50,0.60,0.56)),0.16);",
+" d=smin(d,sdEll(p-vec3(0.0,-0.10,0.30),vec3(0.24,0.20,0.24)),0.16);",
+" d=smin(d,sdCap(q,vec3(0.37,0.24,0.02),vec3(0.17,-0.10,0.30),0.13),0.12);",
+" d=smin(d,sdEll(q-vec3(0.30,0.36,0.38),vec3(0.17,0.13,0.15)),0.12);",
+" d=smin(d,sdCap(q,vec3(0.0,0.60,0.585),vec3(0.31,0.585,0.49),0.075),0.08);",
+" d=smax(d,-sdEll(q-vec3(0.20,0.45,0.66),vec3(0.14,0.085,0.13)),0.09);",
+" d=smin(d,sdEll(q-vec3(0.20,0.445,0.50),vec3(0.095,0.08,0.095)),0.06);",
+" d=smin(d,sdCap(p,vec3(0.0,0.53,0.625),vec3(0.0,0.25,0.79),0.05),0.09);",
+" d=smin(d,sdEll(p-vec3(0.0,0.215,0.785),vec3(0.065,0.06,0.055)),0.07);",
+" d=smin(d,sdEll(q-vec3(0.07,0.195,0.715),vec3(0.05,0.042,0.05)),0.07);",
+" d=smax(d,-sdEll(q-vec3(0.045,0.16,0.755),vec3(0.022,0.014,0.03)),0.02);",
+" d=smin(d,sdEll(p-vec3(0.0,0.045,0.635),vec3(0.13,0.035,0.05)),0.08);",
+" d=smin(d,sdEll(p-vec3(0.0,-0.045,0.62),vec3(0.115,0.04,0.05)),0.08);",
+" d=smax(d,-sdCap(q,vec3(0.0,0.003,0.68),vec3(0.13,0.012,0.63),0.006),0.012);",
+" d=smin(d,sdEll(q-vec3(0.585,0.40,-0.05),vec3(0.07,0.19,0.13)),0.05);",
+" d=smin(d,sdCap(p,vec3(0.0,0.05,-0.10),vec3(0.0,-0.80,-0.06),0.28),0.14);",
+" d=smin(d,sdEll(p-vec3(0.0,-1.30,-0.10),vec3(1.15,0.55,0.50)),0.28);",
+" d=smin(d,sdCap(q,vec3(0.0,-0.62,-0.14),vec3(0.80,-0.92,-0.12),0.20),0.22);",
+" return d;",
+"}",
+"vec3 calcN(vec3 p){vec2 e=vec2(1.0,-1.0)*0.0015;return normalize(e.xyy*bust(p+e.xyy)+e.yyx*bust(p+e.yyx)+e.yxy*bust(p+e.yxy)+e.xxx*bust(p+e.xxx));}",
+"float shadow(vec3 ro,vec3 rd,float k){float res=1.0;float t=0.03;float ph=1e10;for(int i=0;i<64;i++){float h=bust(ro+rd*t);float y=h*h/(2.0*ph);float d=sqrt(max(h*h-y*y,0.0));res=min(res,k*d/max(0.0001,t-y));ph=h;t+=clamp(h,0.02,0.18);if(res<0.002||t>6.0)break;}res=clamp(res,0.0,1.0);return res*res*(3.0-2.0*res);}",
+"float ao(vec3 p,vec3 n){float o=0.0,s=1.0;for(int i=1;i<=5;i++){float h=0.025*float(i)+0.02;o+=(h-bust(p+n*h))*s;s*=0.7;}return clamp(1.0-2.4*o,0.0,1.0);}",
+"float pool(vec3 p){if(uPool<=0.0)return 1.0;vec2 d=(p.xy-uPoolC)/uPoolR;float k=dot(d,d);return exp(-k*k);}",
+"vec2 props(vec3 p){",
+" vec2 r=vec2(p.y+3.2,2.0);",
+" float ped=sdBox(p-vec3(0.0,-2.5,-0.1),vec3(0.55,0.72,0.45))-0.02;if(ped<r.x)r=vec2(ped,3.0);",
+" vec3 C=vec3(0.0,0.3,3.9);",
+" float cam=sdBox(p-C,vec3(0.3,0.24,0.36))-0.03;cam=min(cam,sdCyl(p,C+vec3(0.0,0.02,-0.36),C+vec3(0.0,0.02,-0.78),0.15));",
+" if(cam<r.x)r=vec2(cam,6.0);",
+" vec3 T=C-vec3(0.0,0.3,0.0);",
+" float tri=sdCap(p,T,vec3(0.5,-3.2,4.2),0.03);tri=min(tri,sdCap(p,T,vec3(-0.5,-3.2,4.2),0.03));tri=min(tri,sdCap(p,T,vec3(0.0,-3.2,3.35),0.03));",
+" if(tri<r.x)r=vec2(tri,4.0);",
+" for(int i=0;i<4;i++){ if(float(i)>=uN)break; vec3 P=uLP[i];vec3 D=normalize(vec3(0.0,0.4,0.0)-P);",
+"  float hd=sdCyl(p,P-D*0.22,P+D*0.14,0.26)-0.015;if(hd<r.x)r=vec2(hd,10.0+float(i));",
+"  vec3 B=vec3(P.x,-2.55,P.z);float st=sdCap(p,P-vec3(0.0,0.2,0.0),B,0.035);",
+"  st=min(st,sdCap(p,B,B+vec3(0.5,-0.65,0.0),0.025));st=min(st,sdCap(p,B,B+vec3(-0.25,-0.65,0.43),0.025));st=min(st,sdCap(p,B,B+vec3(-0.25,-0.65,-0.43),0.025));",
+"  if(st<r.x)r=vec2(st,4.0);",
+" }",
+" return r;",
+"}",
+"vec2 mapAll(vec3 p){vec2 r=vec2(bust(p),1.0);float w=p.z+2.0;if(w<r.x)r=vec2(w,0.0);if(uMode>0.5){vec2 q=props(p);if(q.x<r.x)r=q;}return r;}",
+"vec3 calcNA(vec3 p){vec2 e=vec2(1.0,-1.0)*0.002;return normalize(e.xyy*mapAll(p+e.xyy).x+e.yyx*mapAll(p+e.yyx).x+e.yxy*mapAll(p+e.yxy).x+e.xxx*mapAll(p+e.xxx).x);}",
+"void main(){",
+" vec2 uv=(gl_FragCoord.xy-0.5*uRes)/uRes.y;",
+" vec3 ro=vec3(0.0,0.12,6.2);vec3 ta=vec3(0.0,-0.02,0.0);float fl=1.95;",
+" if(uMode>0.5){ro=vec3(3.6,4.6,10.8);ta=vec3(0.1,-1.0,0.2);fl=1.3;}",
+" vec3 fw=normalize(ta-ro);vec3 rt=normalize(cross(fw,vec3(0.0,1.0,0.0)));vec3 up=cross(rt,fw);",
+" vec3 rd=normalize(uv.x*rt+uv.y*up+fl*fw);",
+" float t=0.0;float m=0.0;float minD=max(bust(ro+rd*((-0.1-ro.z)/rd.z)),0.0);",
+" for(int i=0;i<170;i++){vec3 p=ro+rd*t;vec2 h=mapAll(p);if(h.x<0.0007*t){m=h.y;break;}t+=h.x*0.85;if(t>40.0)break;}",
+" vec3 p=ro+rd*t;vec3 col=vec3(0.0);",
+" if(m>1.5){",
+"  vec3 n=calcNA(p);vec3 alb=vec3(0.16,0.155,0.15);float sp=0.1;",
+"  if(m>2.5&&m<3.5){alb=vec3(0.09);} if(m>3.5&&m<4.5){alb=vec3(0.05);sp=0.6;} if(m>5.5&&m<6.5){alb=vec3(0.035);sp=0.8;} if(m>9.5){alb=vec3(0.05);sp=0.5;}",
+"  col=alb*(0.35+0.65*max(n.y,0.0))*0.55;",
+"  for(int i=0;i<4;i++){ if(float(i)>=uN)break; vec3 L=uLD[i];vec3 c=uLC[i];",
+"   float dif=max(dot(n,L),0.0);float spe=pow(max(dot(n,normalize(L-rd)),0.0),40.0)*sp;",
+"   col+=c*(alb*dif*0.8+vec3(spe*0.3));",
+"   if(m>9.5&&abs(m-10.0-float(i))<0.5){vec3 D=normalize(vec3(0.0,0.4,0.0)-uLP[i]);if(dot(n,D)>0.55)col=normalize(c+1e-4)*1.9*min(length(c),1.4)+vec3(0.35);}",
+"  }",
+" }else if(m>0.5){",
+"  vec3 n=calcN(p);float oc=ao(p,n);col=uAmb*uAlb*(0.5+0.5*oc)*1.5;",
+"  for(int i=0;i<4;i++){ if(float(i)>=uN)break; vec3 L=uLD[i];vec3 c=uLC[i];float s=uLS[i];",
+"   float ndl=dot(n,L);float w=s*0.55;float dif=clamp((ndl+w)/(1.0+w),0.0,1.0);",
+"   float sh=dif>0.0?shadow(p+n*0.012,L,mix(40.0,2.2,s)):0.0;",
+"   float spe=pow(max(dot(n,normalize(L-rd)),0.0),22.0)*0.16*(1.0-s*0.7);",
+"   float fr=pow(1.0-max(dot(n,-rd),0.0),3.0)*max(-L.z,0.0)*0.45*sh;",
+"   col+=c*pool(p)*(uAlb*dif*sh*mix(1.0,oc,0.45)+vec3(spe*sh+fr));",
+"  }",
+" }else{",
+"  col=uAmb*uWall;",
+"  for(int i=0;i<4;i++){ if(float(i)>=uN)break; vec3 L=uLD[i];vec3 c=uLC[i];float s=uLS[i];",
+"   float wl=max(L.z,0.0)*0.8+max(L.y,0.0)*0.06;",
+"   if(wl>0.0){float sh=shadow(p,L,mix(26.0,1.6,s));col+=c*pool(p)*uWall*wl*sh;}",
+"   if(L.z<-0.1){col+=c*(-L.z)*exp(-minD*6.0)*0.32*(1.0-s*0.5);}",
+"  }",
+"  col*=1.0-0.28*dot(uv,uv);",
+" }",
+" if(uMode>0.5){for(int i=0;i<4;i++){ if(float(i)>=uN)break; vec3 P=uLP[i];float tt=dot(P-ro,rd);if(tt>0.0&&tt<t+0.4){float dd=length(ro+rd*tt-P);col+=normalize(uLC[i]+1e-4)*exp(-dd*5.0)*0.35*min(length(uLC[i]),1.4);}}}",
+" col*=uWB;col=1.0-exp(-col*uExp*1.6);col=pow(col,vec3(0.4545));",
+" gl_FragColor=vec4(col,1.0);",
+"}"].join("\n");
+
+var GLR=(function(){
+  try{
+    var c=document.createElement("canvas");
+    var gl=c.getContext("webgl",{preserveDrawingBuffer:true,antialias:false,alpha:false})||c.getContext("experimental-webgl",{preserveDrawingBuffer:true});
+    if(!gl) return null;
+    function sh(type,src){ var s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); return null; } return s; }
+    var vs=sh(gl.VERTEX_SHADER,"attribute vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}"), fs=sh(gl.FRAGMENT_SHADER,FS);
+    if(!vs||!fs) return null;
+    var pr=gl.createProgram(); gl.attachShader(pr,vs); gl.attachShader(pr,fs); gl.linkProgram(pr);
+    if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(pr)); return null; }
+    gl.useProgram(pr);
+    var b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+    var al=gl.getAttribLocation(pr,"a"); gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+    var L={}; ["uRes","uLD[0]","uLC[0]","uLS[0]","uN","uWB","uExp","uAmb","uPool","uAlb","uWall","uMode","uLP[0]","uPoolC","uPoolR"].forEach(function(n){ L[n]=gl.getUniformLocation(pr,n); });
+    return {c:c,gl:gl,L:L};
+  }catch(e){ return null; }
+})();
+
+function nrm(v){ var l=Math.hypot(v[0],v[1],v[2])||1; return [v[0]/l,v[1]/l,v[2]/l]; }
+function glDraw(cv,sc){
+  var g=GLR.gl,L=GLR.L,w=cv.width,h=cv.height;
+  GLR.c.width=w; GLR.c.height=h; g.viewport(0,0,w,h);
+  var ld=new Float32Array(12),lc=new Float32Array(12),ls=new Float32Array(4),lp=new Float32Array(12),ls_=(sc.lights||[]).slice(0,4);
+  ls_.forEach(function(l,i){ var d=nrm(l.dir),c=l.color||[1,1,1],k=(l.i==null?1:l.i),dd=3.0;
+    if(d[2]<0) dd=Math.min(dd,1.7/(-d[2]));
+    var P=[d[0]*dd,0.4+d[1]*dd,d[2]*dd]; P[1]=Math.max(P[1],-1.2);
+    for(var j=0;j<3;j++){ ld[i*3+j]=d[j]; lc[i*3+j]=c[j]*k; lp[i*3+j]=P[j]; } ls[i]=(l.soft==null?0.2:l.soft); });
+  g.uniform1f(L.uMode,sc.mode||0); g.uniform3fv(L["uLP[0]"],lp);
+  var pc=sc.poolC||[0,0.35],pr=sc.poolR||[sc.pool||1,sc.pool||1]; g.uniform2f(L.uPoolC,pc[0],pc[1]); g.uniform2f(L.uPoolR,pr[0],pr[1]);
+  g.uniform2f(L.uRes,w,h); g.uniform3fv(L["uLD[0]"],ld); g.uniform3fv(L["uLC[0]"],lc); g.uniform1fv(L["uLS[0]"],ls); g.uniform1f(L.uN,ls_.length);
+  var wb=sc.wb||[1,1,1],al=sc.albedo||[0.86,0.83,0.79],wa=sc.wall||[0.34,0.34,0.36];
+  g.uniform3f(L.uWB,wb[0],wb[1],wb[2]); g.uniform1f(L.uExp,sc.exposure||1); g.uniform1f(L.uAmb,sc.ambient==null?0.035:sc.ambient);
+  g.uniform1f(L.uPool,sc.pool||0); g.uniform3f(L.uAlb,al[0],al[1],al[2]); g.uniform3f(L.uWall,wa[0],wa[1],wa[2]);
+  g.drawArrays(g.TRIANGLE_STRIP,0,4);
+  var ctx=cv.getContext("2d"); ctx.drawImage(GLR.c,0,0);
+}
+/* Cadangan tanpa WebGL: bola sederhana */
+function sst(a,b,x){ var t=Math.min(1,Math.max(0,(x-a)/(b-a))); return t*t*(3-2*t); }
+function cpuDraw(cv,sc){
+  var W=cv.width,H=cv.height,ctx=cv.getContext("2d"),img=ctx.createImageData(W,H),d=img.data,cx=W/2,cy=H*0.5,R=H*0.3;
+  var ls=(sc.lights||[]).map(function(l){ return {L:nrm(l.dir),c:l.color||[1,1,1],i:l.i==null?1:l.i,s:l.soft==null?0.2:l.soft}; }),al=sc.albedo||[0.86,0.83,0.79],wa=sc.wall||[0.34,0.34,0.36],wb=sc.wb||[1,1,1],amb=sc.ambient==null?0.035:sc.ambient,p=0;
+  for(var y=0;y<H;y++) for(var x=0;x<W;x++){
+    var nx=(x-cx)/R,ny=-(y-cy)/R,r2=nx*nx+ny*ny,o=[amb*wa[0],amb*wa[1],amb*wa[2]];
+    ls.forEach(function(l){ var f=Math.max(0,l.L[2])*0.8*l.i; o[0]+=wa[0]*l.c[0]*f; o[1]+=wa[1]*l.c[1]*f; o[2]+=wa[2]*l.c[2]*f; });
+    if(r2<1){ var n=[nx,ny,Math.sqrt(1-r2)]; o=[amb*al[0],amb*al[1],amb*al[2]];
+      ls.forEach(function(l){ var nd=n[0]*l.L[0]+n[1]*l.L[1]+n[2]*l.L[2],w=l.s*0.9,f=(0.6*Math.max(0,(nd+w)/(1+w))+0.4*sst(-0.03-w*0.5,0.08+w*0.5,nd))*l.i; for(var q=0;q<3;q++) o[q]+=al[q]*l.c[q]*f; }); }
+    for(var q=0;q<3;q++){ var v=1-Math.exp(-o[q]*wb[q]*1.6); d[p+q]=Math.pow(v,0.4545)*255; } d[p+3]=255; p+=4;
+  }
+  ctx.putImageData(img,0,0);
+}
+function lampPos(dir){ var d=nrm(dir),dd=3.0; if(d[2]<0) dd=Math.min(dd,1.7/(-d[2])); return [d[0]*dd,Math.max(-1.2,0.4+d[1]*dd),d[2]*dd]; }
+function studioLabels(cv,sc){
+  var box=cv.parentNode,old=box.querySelectorAll(".slbl"); old.forEach(function(e){ e.remove(); });
+  if(sc.mode!==1||!GLR) return;
+  var ro=[3.6,4.6,10.8],ta=[0.1,-1.0,0.2],fl=1.3,sub=function(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; },dot=function(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; },cr=function(a,b){ return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]; };
+  var fw=nrm(sub(ta,ro)),rt=nrm(cr(fw,[0,1,0])),up=cr(rt,fw),W=cv.clientWidth,H=cv.clientHeight;
+  var items=(sc.lights||[]).map(function(l,i){ var P=lampPos(l.dir); return [(sc.labels||[])[i]||("LAMPU "+(i+1)),[P[0],P[1]+0.45,P[2]]]; });
+  items.push(["KAMERA",[0,0.95,3.9]],["SUBJEK",[0,-2.75,0.6]]);
+  items.forEach(function(it){ var v=sub(it[1],ro),z=dot(v,fw); if(z<=0) return; var x=dot(v,rt)/z*fl,y=dot(v,up)/z*fl;
+    var s=document.createElement("span"); s.className="slbl"; s.textContent=it[0]; s.style.left=(W/2+x*H)+"px"; s.style.top=(H/2-y*H)+"px"; box.appendChild(s); });
+}
+function drawScene(cv,sc){ if(GLR) glDraw(cv,sc); else cpuDraw(cv,sc); studioLabels(cv,sc); }
+
+/* Penjadwal render: hanya kanvas yang terlihat yang digambar */
+var dirty=[], RO=("ResizeObserver" in window)?new ResizeObserver(function(es){ es.forEach(function(e){ if(e.target.__sc) mark(e.target); }); }):null;
+function fit(cv){
+  var s=Math.min(window.devicePixelRatio||1,1.5),W=Math.max(2,Math.round(cv.clientWidth*s)),H=Math.max(2,Math.round(cv.clientHeight*s));
+  var max=GLR?(cv.__live?380000:620000):70000,k=Math.sqrt(max/(W*H)); if(k<1){ W=Math.round(W*k); H=Math.round(H*k); }
+  if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H; return true; } return false;
+}
+function mark(cv){ if(dirty.indexOf(cv)<0) dirty.push(cv); sched(); }
+function sched(){
+  if(sched.p) return; sched.p=true;
+  requestAnimationFrame(function(){
+    sched.p=false; var keep=[];
+    dirty.forEach(function(cv){
+      if(cv.clientWidth<4||cv.clientHeight<4){ keep.push(cv); return; }
+      var rs=fit(cv), key=cv.__v+":"+cv.width+"x"+cv.height;
+      if(rs||cv.__key!==key){ drawScene(cv,cv.__sc); cv.__key=key; }
+    });
+    dirty=keep;
+  });
+}
+function setScene(cv,sc){ if(!cv) return; cv.__sc=sc; cv.__v=(cv.__v||0)+1; if(RO&&!cv.__obs){ RO.observe(cv); cv.__obs=1; } mark(cv); }
+function refreshVisible(root){ (root||document).querySelectorAll("canvas").forEach(function(cv){ if(cv.__sc) mark(cv); }); }
+
+/* ================= Adegan ================= */
+var KEY=[0.72,0.45,0.75];
+var GEL={ none:{n:"Tanpa gel",c:[1,1,1]}, biru:{n:"Biru",c:[0.22,0.42,1]}, hijau:{n:"Hijau",c:[0.28,1,0.36]}, orange:{n:"Oranye",c:[1,0.5,0.12]}, magenta:{n:"Magenta",c:[1,0.2,0.8]}, merah:{n:"Merah",c:[1,0.09,0.07]}, ungu:{n:"Ungu/Violet",c:[0.56,0.26,1]} };
+function kScene(k){ return {lights:[{dir:KEY,soft:0.45,i:1.25,color:kelvinRGB(k)},{dir:[-0.8,0.1,0.6],soft:0.9,i:0.18,color:kelvinRGB(k)}],wb:wbGain(5600)}; }
+function gelScene(g){ return {lights:[{dir:[-0.65,0.4,0.7],soft:0.35,i:1.45,color:GEL[g].c},{dir:[0.8,0.1,0.6],soft:0.85,i:0.14}],wall:[0.38,0.38,0.4]}; }
+var SC={
+  hero:{lights:[{dir:[-0.75,0.4,0.6],soft:0.25,i:1.35,color:[1,0.78,0.5]},{dir:[0.55,0.35,-0.8],soft:0.2,i:1.5,color:[0.55,0.75,1]}],ambient:0.02,wall:[0.25,0.24,0.25]},
+  flat:{lights:[{dir:[0,0.1,1],soft:0.75,i:1.05}]},
+  dim:{lights:[{dir:[1,0.3,0.25],soft:0.12,i:1.4},{dir:[-0.8,0.1,0.6],soft:0.9,i:0.1}]},
+  pick:{lights:[{dir:[0.05,0.08,1],soft:0.15,i:1.15}],pool:1,poolC:[0,0.45],poolR:[0.4,0.1],ambient:0.004},
+  atmo:{lights:[{dir:[0.35,0.4,-0.85],soft:0.3,i:1.7,color:[0.45,0.6,1]},{dir:[-0.5,0.2,0.8],soft:0.9,i:0.2,color:[0.35,0.45,1]}],ambient:0.02,wall:[0.22,0.24,0.32]},
+  day:kScene(5600), tung:kScene(3200), k1900:kScene(1900), k3200:kScene(3200), k5600:kScene(5600), k9000:kScene(9000),
+  hard:{lights:[{dir:KEY,soft:0.03,i:1.45}]},
+  soft:{lights:[{dir:KEY,soft:0.95,i:1.3}]},
+  natural:{lights:[{dir:[0.6,0.2,-0.75],soft:0.3,i:1.4,color:[1,0.6,0.3]}],ambient:0.06,wall:[0.42,0.32,0.26]},
+  artificial:{lights:[{dir:[0.6,0.2,-0.75],soft:0.3,i:1.4,color:[1,0.6,0.3]},{dir:[-0.55,0.3,0.78],soft:0.75,i:0.95,color:[1,0.93,0.86]}],ambient:0.06,wall:[0.42,0.32,0.26]},
+  direct:{lights:[{dir:KEY,soft:0.04,i:1.4}]},
+  diffused:{lights:[{dir:KEY,soft:0.85,i:1.15}]},
+  reflected:{lights:[{dir:[-0.7,0.1,0.7],soft:0.65,i:0.85,color:[1,0.9,0.72]}]},
+  front:{lights:[{dir:[0,0.12,1],soft:0.3,i:1.15}]},
+  back:{lights:[{dir:[0.2,0.35,-0.92],soft:0.15,i:1.8}],ambient:0.015},
+  side:{lights:[{dir:[1,0.12,0.02],soft:0.1,i:1.45}]},
+  top:{lights:[{dir:[0,1,0.12],soft:0.12,i:1.6}]},
+  sideBack:{lights:[{dir:[-1,0.15,0.05],soft:0.12,i:1.35},{dir:[0.3,0.35,-0.9],soft:0.15,i:1.5}]},
+  tpWhite:{lights:[{dir:[-0.7,0.35,0.65],soft:0.35,i:1.15},{dir:[0.8,0.1,0.6],soft:0.8,i:0.4},{dir:[0.25,0.35,-0.9],soft:0.2,i:1.4}]},
+  tpStudio:{mode:1,ambient:0.06,labels:["KEY","FILL","BACK"],lights:[{dir:[-0.7,0.35,0.65],soft:0.35,i:1.15},{dir:[0.8,0.1,0.6],soft:0.8,i:0.4},{dir:[0.25,0.35,-0.9],soft:0.2,i:1.4}]},
+  tp:{lights:[{dir:[-0.7,0.35,0.65],soft:0.3,i:1.2,color:GEL.magenta.c},{dir:[0.8,0.1,0.6],soft:0.8,i:0.45,color:GEL.biru.c},{dir:[0.25,0.35,-0.9],soft:0.2,i:1.4,color:[0.4,0.9,1]}]}
+};
+Object.keys(GEL).forEach(function(g){ SC["g-"+g]=gelScene(g); });
+document.querySelectorAll("canvas[data-sc]").forEach(function(cv){ setScene(cv,SC[cv.dataset.sc]); });
+
+/* ================= Timecode ================= */
+var t0=Date.now();
+function tc(){ var ms=Date.now()-t0,f=Math.floor(ms/40)%25,s=Math.floor(ms/1000),pd=function(n){ return (n<10?"0":"")+n; };
+  var str=pd(Math.floor(s/3600))+":"+pd(Math.floor(s/60)%60)+":"+pd(s%60)+":"+pd(f); $("tc").textContent=str;
+  document.querySelectorAll(".js-tc").forEach(function(e){ e.textContent=str; }); }
+tc(); if(!reduce) setInterval(tc,120);
+
+/* ================= Siswa & skor ================= */
+var student=load("student",null), bestAll=load("best",{});
+function sid(){ return student ? (student.nama.toLowerCase().trim()+"|"+student.kelas.toLowerCase().trim()) : "_"; }
+function best(){ return bestAll[sid()]||(bestAll[sid()]={}); }
+var QN={"bab-1":10,"bab-2":10,"bab-3":10};
+function refreshProgress(){
+  var b=best(),xp=0,sum=0,cnt=0;
+  Object.keys(QN).forEach(function(k){
+    var s=b[k]; if(s!=null){ xp+=s*10; sum+=s/QN[k]*100; cnt++; }
+    var m=document.querySelector('[data-meter="'+k+'"]'); if(m) m.style.width=(s!=null?s/QN[k]*100:0)+"%";
+    var t=document.querySelector('[data-best="'+k+'"]'); if(t) t.textContent=s!=null?(s*10):"-";
+  });
+  $("xpTotal").textContent=fmt(xp); $("stXp").textContent=fmt(xp); $("stAvg").textContent=cnt?Math.round(sum/cnt):"-";
+}
+function applyStudent(){
+  $("sNama").textContent=student.nama; $("sKelas").textContent=student.kelas+(student.absen?" · No. "+student.absen:"");
+  $("hello").textContent="Halo, "+student.nama.split(" ")[0]+"!";
+  refreshProgress();
+}
+
+/* Gate */
+var gateCv=$("gateCv"); gateCv.__live=true; setScene(gateCv,SC.hero);
+if(!reduce){
+  $("gate").querySelector(".gate-stage").addEventListener("pointermove",function(e){
+    var r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*2-1,y=(e.clientY-r.top)/r.height*2-1;
+    setScene(gateCv,{lights:[{dir:[x*1.2,-y*0.9+0.25,0.7],soft:0.25,i:1.4,color:[1,0.78,0.5]},{dir:[0.55,0.35,-0.8],soft:0.2,i:1.4,color:[0.55,0.75,1]}],ambient:0.02,wall:[0.25,0.24,0.25]});
+  });
+}
+if(student){ $("fNama").value=student.nama; $("fKelas").value=student.kelas; $("fAbsen").value=student.absen||""; }
+$("gateForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  var n=$("fNama").value.trim().replace(/\s+/g," "), k=$("fKelas").value.trim().replace(/\s+/g," "), a=$("fAbsen").value.trim();
+  if(n.length<3){ $("gateErr").textContent="Tulis nama lengkapmu (minimal 3 huruf)."; $("fNama").focus(); return; }
+  if(!k){ $("gateErr").textContent="Tulis kelasmu, misalnya XI Broadcasting 1."; $("fKelas").focus(); return; }
+  $("gateErr").textContent=""; student={nama:n,kelas:k,absen:a}; save("student",student);
+  enterApp();
+});
+$("btnGanti").addEventListener("click",function(){ $("app").hidden=true; $("gate").hidden=false; refreshVisible($("gate")); $("fNama").focus(); });
+function enterApp(){
+  $("gate").hidden=true; $("app").hidden=false; applyStudent();
+  QUIZZES.forEach(function(q){ q.reset(); });
+  var h=(location.hash||"").replace("#","").split("-");
+  if(h[0]==="bab"&&h[1]) go("bab-"+h[1],h[2]||"materi"); else go("home");
+  toast("Selamat datang di Lighting Lab, "+student.nama.split(" ")[0]+"!");
+}
+
+/* ================= Navigasi ================= */
+var META={"bab-1":["KD 3.17 · BAB 1","Karakteristik Lighting"],"bab-2":["KD 3.21 · BAB 2","Arah Cahaya"],"bab-3":["KD 3.22 · BAB 3","Warna Cahaya"]};
+var cur={view:"home",tab:"materi"};
+function go(view,tab){
+  if(view!=="home"&&!META[view]) view="home";
+  tab=["materi","lab","latihan"].indexOf(tab)<0?"materi":tab;
+  cur={view:view,tab:tab};
+  var pid=view==="home"?"p-home":"p-"+view+"-"+tab;
+  document.querySelectorAll(".panel").forEach(function(p){ p.hidden=(p.id!==pid); });
+  document.querySelectorAll(".nav button").forEach(function(b){ if(b.dataset.go===view) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+  $("subtabs").hidden=(view==="home");
+  document.querySelectorAll("#subtabs button").forEach(function(b){ b.setAttribute("aria-selected",String(b.dataset.tab===tab)); });
+  $("hKd").textContent=view==="home"?"STUDIO · "+SCHOOL.toUpperCase():META[view][0];
+  $("hTitle").textContent=view==="home"?"Beranda":META[view][1];
+  try{ var hs="#"+(view==="home"?"beranda":view+"-"+tab); if(location.hash!==hs) history.replaceState(null,"",hs); }catch(e){}
+  refreshVisible($(pid));
+}
+document.querySelectorAll("[data-go]").forEach(function(b){ b.addEventListener("click",function(){ go(b.dataset.go,b.dataset.tab||"materi"); }); });
+document.querySelectorAll("#subtabs button").forEach(function(b){ b.addEventListener("click",function(){ go(cur.view,b.dataset.tab); }); });
+
+/* Slide pager */
+document.querySelectorAll(".materi").forEach(function(m){
+  var slides=[].slice.call(m.querySelectorAll(".slide")),pg=m.querySelector(".pager"),idx=0,bab=m.dataset.bab;
+  pg.innerHTML='<button class="btn" type="button" data-p>← Sebelumnya</button><div class="dots"></div><button class="btn primary" type="button" data-n>Berikutnya →</button>';
+  var dots=pg.querySelector(".dots");
+  slides.forEach(function(s,i){ var b=document.createElement("button"); b.type="button"; b.textContent=(i+1)+". "+s.dataset.t; b.addEventListener("click",function(){ show(i); }); dots.appendChild(b); });
+  function show(i){
+    idx=Math.max(0,Math.min(slides.length-1,i));
+    slides.forEach(function(s,j){ s.hidden=(j!==idx); });
+    dots.querySelectorAll("button").forEach(function(b,j){ b.setAttribute("aria-current",String(j===idx)); });
+    pg.querySelector("[data-p]").disabled=(idx===0);
+    pg.querySelector("[data-n]").textContent=idx===slides.length-1?"Lanjut ke Lab →":"Berikutnya →";
+    refreshVisible(slides[idx]);
+  }
+  pg.querySelector("[data-p]").addEventListener("click",function(){ show(idx-1); });
+  pg.querySelector("[data-n]").addEventListener("click",function(){ if(idx===slides.length-1) go(bab,"lab"); else show(idx+1); });
+  show(0);
+});
+/* Lightbox: klik gambar materi untuk tampilan utuh */
+var lb={list:[],i:0,back:null};
+function lbShow(){ var it=lb.list[lb.i]; $("lbImg").src=it.src; $("lbImg").alt=it.alt; $("lbCap").textContent=it.cap; $("lbCount").textContent="GAMBAR "+(lb.i+1)+" / "+lb.list.length; $("lbPrev").disabled=lb.list.length<2; $("lbNext").disabled=lb.list.length<2; }
+function lbOpen(ph){
+  var scope=ph.closest(".slide")||document,phs=[].slice.call(scope.querySelectorAll(".ph.zoom"));
+  lb.list=phs.map(function(p){ var im=p.querySelector("img"),f=p.closest(".fig"),c=f?f.querySelector(".cap"):null; return {src:im.src,alt:im.alt,cap:c?[].map.call(c.children,function(x){ return x.textContent.trim(); }).filter(Boolean).join(" · "):im.alt}; });
+  lb.i=Math.max(0,phs.indexOf(ph)); lb.back=ph; lbShow(); $("lb").hidden=false; $("lbClose").focus();
+}
+function lbClose(){ $("lb").hidden=true; if(lb.back) lb.back.focus(); }
+document.querySelectorAll(".slide .ph").forEach(function(ph){
+  var im=ph.querySelector("img"); if(!im) return;
+  ph.classList.add("zoom"); ph.tabIndex=0; ph.setAttribute("role","button"); ph.setAttribute("aria-label","Perbesar gambar: "+im.alt);
+  ph.addEventListener("click",function(){ lbOpen(ph); });
+  ph.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); lbOpen(ph); } });
+});
+$("lbClose").addEventListener("click",lbClose);
+$("lbPrev").addEventListener("click",function(){ lb.i=(lb.i-1+lb.list.length)%lb.list.length; lbShow(); });
+$("lbNext").addEventListener("click",function(){ lb.i=(lb.i+1)%lb.list.length; lbShow(); });
+$("lb").addEventListener("click",function(e){ if(e.target===$("lb")||e.target.classList.contains("lb-img")) lbClose(); });
+document.addEventListener("keydown",function(e){
+  if($("lb").hidden) return;
+  if(e.key==="Escape") lbClose(); else if(e.key==="ArrowLeft") $("lbPrev").click(); else if(e.key==="ArrowRight") $("lbNext").click();
+  e.stopImmediatePropagation();
+},true);
+
+document.addEventListener("keydown",function(e){
+  if($("app").hidden||cur.tab!=="materi"||cur.view==="home") return;
+  if(/INPUT|SELECT|TEXTAREA/.test((e.target||{}).tagName||"")) return;
+  var pg=$("p-"+cur.view+"-materi").querySelector(".pager");
+  if(e.key==="ArrowRight"){ var n=pg.querySelector("[data-n]"); if(n.textContent.indexOf("Lab")<0) n.click(); }
+  if(e.key==="ArrowLeft") pg.querySelector("[data-p]").click();
+});
+
+function segment(el,items,cur_,onPick,multi){
+  el.innerHTML="";
+  items.forEach(function(it){ var b=document.createElement("button"); b.type="button"; b.textContent=it[1];
+    b.setAttribute("aria-pressed",multi?String(!!cur_[it[0]]):String(cur_===it[0])); b.addEventListener("click",function(){ onPick(it[0]); }); el.appendChild(b); });
+}
+function plot(svg,lamps){
+  var cx=120,cy=92,s=70,o='<circle cx="120" cy="92" r="70" fill="none" stroke="#35302A" stroke-dasharray="3 4"/>';
+  lamps.forEach(function(l){ if(!l.on||l.top) return; var px=cx+l.x*s,py=cy+l.z*s; o+='<line x1="'+px+'" y1="'+py+'" x2="'+cx+'" y2="'+cy+'" stroke="'+toCss(l.color)+'" stroke-opacity=".6" stroke-width="2"/>'; });
+  o+='<ellipse cx="'+cx+'" cy="'+(cy+4)+'" rx="22" ry="11" fill="#6E665C"/><circle cx="'+cx+'" cy="'+cy+'" r="11" fill="#D9CFC2"/><path d="M'+(cx-3)+' '+(cy+10)+' L'+cx+' '+(cy+15)+' L'+(cx+3)+' '+(cy+10)+'Z" fill="#D9CFC2"/><text x="'+(cx+26)+'" y="'+(cy+4)+'">subjek</text>';
+  o+='<rect x="'+(cx-11)+'" y="182" width="22" height="13" rx="3" fill="#8C8379"/><polygon points="'+(cx-6)+',182 '+(cx+6)+',182 '+cx+',174" fill="#8C8379"/><text x="'+(cx+16)+'" y="193">kamera</text>';
+  lamps.forEach(function(l){ var px=cx+l.x*s,py=cy+l.z*s,col=l.on?toCss(l.color):"#35302A";
+    if(l.top){ o+='<circle cx="'+px+'" cy="'+py+'" r="26" fill="none" stroke="'+col+'" stroke-width="'+(l.on?2:1)+'" stroke-dasharray="2 3"/><text x="'+px+'" y="'+(py-30)+'" text-anchor="middle">'+l.label+'</text>'; return; }
+    o+='<circle cx="'+px+'" cy="'+py+'" r="8" fill="'+col+'" stroke="#0F0E0C" stroke-width="2"/><text x="'+px+'" y="'+(py<cy-30?py-12:py+20)+'" text-anchor="middle">'+l.label+'</text>'; });
+  svg.innerHTML=o;
+}
+
+/* ================= BAB 1 ================= */
+var ENV=[["Lilin",1900],["Bohlam pijar",2700],["Tungsten studio",3200],["Matahari sore",3500],["Matahari siang",5500],["LED/neon putih",6500],["Langit mendung",7000],["Bayangan hari cerah",10000]];
+ENV.forEach(function(e){
+  var b=document.createElement("button"); b.className="chip"; b.type="button"; b.setAttribute("aria-pressed","false");
+  b.innerHTML='<span class="sw" style="background:'+toCss(kelvinRGB(e[1]))+'"></span>'+e[0];
+  b.addEventListener("click",function(){
+    $("envChips").querySelectorAll(".chip").forEach(function(x){ x.setAttribute("aria-pressed","false"); }); b.setAttribute("aria-pressed","true");
+    $("envOut").innerHTML='<b>'+e[0]+' · <span class="mono">±'+fmt(e[1])+' K</span></b><p>Golongan: '+(e[1]<4200?'<span class="tg">mendekati Tungsten (hangat, kekuningan)</span>':'<span class="dl">mendekati Daylight (putih sampai kebiruan)</span>')+'.</p>';
+  });
+  $("envChips").appendChild(b);
+});
+var b1=["b1soft","b1dist","b1beam","b1pow"].map($); $("cv1").__live=true;
+function drawB1(){
+  var soft=+b1[0].value/100,dist=+b1[1].value/10,beam=+b1[2].value/100,pow=+b1[3].value/100,bf=1.5-beam*0.8,I=pow*bf/(dist*dist);
+  $("b1softV").textContent=soft<0.34?"kecil":soft<0.67?"sedang":"besar";
+  $("b1distV").textContent=dist.toFixed(1).replace(".",",")+" m";
+  $("b1beamV").textContent=beam<0.34?"spot":beam<0.67?"medium":"flood";
+  $("b1powV").textContent=Math.round(pow*100)+"%";
+  setScene($("cv1"),{lights:[{dir:KEY,soft:soft,i:Math.min(3.2,I*1.75)}],pool:0.85+beam*2.6,ambient:0.025});
+  var kar=soft<0.34?["Hard light","hi"]:soft<0.67?["Semi-soft","mid"]:["Soft light","lo"], base=0.8*1.14/2.25;
+  $("b1out").innerHTML='<div><span class="pill '+kar[1]+'">'+kar[0]+'</span></div><dl class="kv"><dt>Kontras</dt><dd>'+(soft<0.34?"tinggi":soft<0.67?"sedang":"rendah")+'</dd><dt>Bayangan</dt><dd>'+(soft<0.34?"tegas, batas tajam":soft<0.67?"agak lembut":"halus, batas kabur")+'</dd><dt>Cahaya di subjek</dt><dd class="mono">'+Math.round(I/base*100)+'% dari setelan awal</dd></dl><p>Hukum kuadrat terbalik: jarak 2× → cahaya tinggal ¼. Di '+dist.toFixed(1).replace(".",",")+' m, cahaya = '+Math.round(100/(dist*dist))+'% dibanding jarak 1 m.</p>';
+  $("b1foot").textContent="KEY 45° · "+kar[0].toUpperCase()+" · "+dist.toFixed(1)+" M · "+(beam<0.34?"SPOT":beam<0.67?"MEDIUM":"FLOOD");
+}
+b1.forEach(function(e){ e.addEventListener("input",drawB1); }); drawB1();
+
+/* ================= BAB 2 ================= */
+var DIR={front:{n:"Front",dir:[0,0.12,1],x:0,z:0.78,d:"datar, minim dimensi & volume"},
+  sideL:{n:"Side kiri",dir:[-1,0.12,0.03],x:-1,z:0,d:"separuh wajah terang, tekstur & depth"},
+  sideR:{n:"Side kanan",dir:[1,0.12,0.03],x:1,z:0,d:"separuh wajah terang, tekstur & depth"},
+  back:{n:"Back",dir:[0.22,0.35,-0.92],x:0.22,z:-0.95,d:"rim light/halo, terpisah dari background"},
+  top:{n:"Top",dir:[0,1,0.12],x:0,z:0,top:true,d:"natural, tapi gelap di bawah mata & dagu"}};
+var TYPE={direct:{n:"Direct",soft:0.05,i:1.35,c:[1,1,1],d:"keras, bayangan tegas"},diffused:{n:"Diffused",soft:0.82,i:1.1,c:[1,1,1],d:"lembut, bayangan halus"},reflected:{n:"Reflected",soft:0.62,i:0.8,c:[1,0.92,0.78],d:"lembut, lebih redup, warna ikut reflektor"}};
+var COMBO={"back+sideR":"Dramatis: wajah berdimensi dan tepinya bercahaya, terpisah dari background.","back+sideL":"Dramatis: wajah berdimensi dan tepinya bercahaya, terpisah dari background.","back+front":"Wajah terang rata, tapi tepi kepala bercahaya jadi tidak menempel ke background.","sideL+sideR":"Dua sisi terang, tengah wajah sedikit gelap. Kesan tegas.","front+top":"Terang dan aman, bayangan bawah dagu jadi lebih ringan.","back+top":"Misterius: wajah depan tetap gelap, kepala bercahaya."};
+var s2={on:{front:false,sideL:false,sideR:true,back:true,top:false},lv:{front:100,sideL:100,sideR:100,back:100,top:100},type:"direct"}; $("cv2").__live=true;
+Object.keys(DIR).forEach(function(k){
+  var row=document.createElement("div"); row.className="lamprow";
+  var b=document.createElement("button"); b.type="button"; b.className="toggle"; b.innerHTML="<i></i>"+DIR[k].n;
+  b.addEventListener("click",function(){ s2.on[k]=!s2.on[k]; drawB2(); });
+  var r=document.createElement("input"); r.type="range"; r.min="0"; r.max="150"; r.step="5"; r.value=String(s2.lv[k]); r.id="lv-"+k; r.setAttribute("aria-label","Intensitas "+DIR[k].n);
+  var o=document.createElement("output"); r.addEventListener("input",function(){ s2.lv[k]=+r.value; drawB2(); });
+  row.appendChild(b); row.appendChild(r); row.appendChild(o); $("b2lamps").appendChild(row); DIR[k].ui={b:b,r:r,o:o};
+});
+function drawB2(){
+  var t=TYPE[s2.type],keys=Object.keys(DIR).filter(function(k){ return s2.on[k]; });
+  Object.keys(DIR).forEach(function(k){ var u=DIR[k].ui; u.b.setAttribute("aria-pressed",String(!!s2.on[k])); u.r.disabled=!s2.on[k]; u.o.textContent=s2.on[k]?s2.lv[k]+"%":"mati"; });
+  segment($("b2type"),Object.keys(TYPE).map(function(k){ return [k,TYPE[k].n]; }),s2.type,function(k){ s2.type=k; drawB2(); });
+  setScene($("cv2"),{lights:keys.slice(0,4).map(function(k){ return {dir:DIR[k].dir,soft:t.soft,i:t.i*(s2.lv[k]/100)*(keys.length>2?0.8:1),color:t.c}; })});
+  plot($("plot2"),Object.keys(DIR).map(function(k){ var o=DIR[k]; return {x:o.x,z:o.z,top:o.top,on:s2.on[k],label:o.n,color:[1,0.72,0.35]}; }));
+  var h;
+  if(!keys.length) h='<p><span class="pill hi">Semua lampu mati</span></p><p>Nyalakan minimal satu lampu.</p>';
+  else { var cb=keys.length===2?COMBO[keys.slice().sort().join("+")]:null;
+    h='<div><span class="pill '+(keys.length>=2?"okp":"mid")+'">'+keys.length+' arah'+(keys.length>=2?" · syarat tugas terpenuhi":"")+'</span> <span class="pill lo">'+t.n+'</span></div><dl class="kv">'+keys.map(function(k){ return "<dt>"+DIR[k].n+"</dt><dd>"+s2.lv[k]+"% · "+DIR[k].d+"</dd>"; }).join("")+"<dt>Jenis</dt><dd>"+t.d+"</dd></dl>"+(cb?"<p>"+cb+"</p>":""); }
+  $("b2out").innerHTML=h;
+  $("b2foot").textContent=(keys.map(function(k){ return DIR[k].n.toUpperCase()+" "+s2.lv[k]+"%"; }).join(" + ")||"NO LIGHT")+" · "+t.n.toUpperCase();
+}
+drawB2();
+
+/* ================= BAB 3 ================= */
+[[1900,"Lilin"],[3200,"Tungsten"],[4500,"Matahari pagi"],[5600,"Daylight"],[7000,"Mendung"],[10000,"Langit biru"]].forEach(function(k){
+  var d=document.createElement("div"); d.style.left=((k[0]-1500)/8500*94+3)+"%"; d.innerHTML="<b>"+fmt(k[0])+" K</b>"+k[1]; $("kscale").appendChild(d); });
+
+var FG=[["none","Tanpa",0],["q-ctb","¼ CTB",-30],["h-ctb","½ CTB",-68],["f-ctb","Full CTB",-131],["q-cto","¼ CTO",42],["h-cto","½ CTO",81],["f-cto","Full CTO",159]];
+var fs={src:3200,gel:"f-ctb"};
+function drawF(){
+  segment($("fSrc"),[["3200","Tungsten 3.200 K"],["5600","Daylight 5.600 K"]],String(fs.src),function(k){ fs.src=+k; drawF(); });
+  segment($("fGel"),FG.map(function(g){ return [g[0],g[1]]; }),fs.gel,function(k){ fs.gel=k; drawF(); });
+  var g=FG.filter(function(x){ return x[0]===fs.gel; })[0],m0=1e6/fs.src,m1=m0+g[2],K=1e6/m1;
+  setScene($("cvF"),kScene(K));
+  var note=g[2]===0?"Tanpa filter, suhu lampu tetap.":g[2]<0?(fs.src===3200?"CTB di tungsten → mendekati daylight. Cocok untuk menyamakan dengan cahaya jendela.":"CTB di daylight → makin biru. Bisa untuk efek malam/dingin."):(fs.src===5600?"CTO di daylight → mendekati tungsten. Cocok untuk interior hangat.":"CTO di tungsten → makin oranye, mirip lilin atau sunset.");
+  $("fOut").innerHTML='<b><span class="mono">'+fmt(fs.src)+' K → ≈ '+fmt(K)+' K</span></b><span>'+note+' Hitungan mired: 1.000.000 ÷ '+fmt(fs.src)+' = '+Math.round(m0)+'; '+Math.round(m0)+' '+(g[2]<0?"−":"+")+' '+Math.abs(g[2])+' = '+Math.round(m1)+'; 1.000.000 ÷ '+Math.round(m1)+' ≈ '+fmt(K)+' K. (White balance kamera 5.600 K.)</span>';
+}
+drawF();
+
+var mode3="wb"; $("cv3").__live=true;
+function setMode3(m){ mode3=m; segment($("b3mode"),[["wb","White Balance"],["gel","Gel Warna"],["tp","Three Point"]],m,setMode3);
+  $("pane-wb").hidden=m!=="wb"; $("pane-gel").hidden=m!=="gel"; $("pane-tp").hidden=m!=="tp";
+  $("b3cam").textContent="CAM A · "+(m==="wb"?"WHITE BALANCE":m==="gel"?"GEL WARNA":"THREE POINT");
+  if(m==="wb") drawWB(); else if(m==="gel") drawG(); else drawTP(); }
+var wb={cam:"3200"};
+var CAMS=[["3200","Tungsten 3.200 K"],["5600","Daylight 5.600 K"],["auto","Manual (ikut lampu)"]];
+function drawWB(){
+  var K=+$("wbK").value,camK=wb.cam==="auto"?K:+wb.cam; $("wbKV").textContent=fmt(K)+" K";
+  segment($("wbCam"),CAMS,wb.cam,function(k){ wb.cam=k; drawWB(); });
+  var lc=kelvinRGB(K),cc=kelvinRGB(camK),gain=[cc[1]/cc[0],1,cc[1]/cc[2]];
+  setScene($("cv3"),{lights:[{dir:[-0.6,0.35,0.72],soft:0.5,i:1.3,color:lc},{dir:[0.7,0.1,0.6],soft:0.85,i:0.35,color:lc}],wb:gain,albedo:[0.78,0.78,0.78],wall:[0.42,0.42,0.42]});
+  var card=[lc[0]*gain[0],lc[1]*gain[1],lc[2]*gain[2]],mx=Math.max(card[0],card[1],card[2]); card=card.map(function(v){ return v/mx*0.78; });
+  var df=card[0]-card[2],v,c;
+  if(df>0.06){ v="kekuningan / oranye"; c="mid"; } else if(df<-0.06){ v="kebiruan"; c="lo"; } else { v="netral, natural"; c="okp"; }
+  $("wbOut").innerHTML='<div class="swatches"><span style="background:'+toCss(card)+'"></span><div><b>Kartu abu-abu terlihat:</b><br><span class="pill '+c+'">'+v+'</span></div></div><dl class="kv"><dt>Lampu</dt><dd class="mono">'+fmt(K)+' K</dd><dt>Kamera</dt><dd class="mono">'+fmt(camK)+' K</dd></dl><p>'+(c==="okp"?"Setelan kamera sudah sesuai suhu lampu. Inilah tujuan white balance manual.":c==="mid"?"Kelvin lampu lebih rendah dari setelan kamera → gambar kekuningan. Turunkan WB kamera atau pasang CTB.":"Kelvin lampu lebih tinggi dari setelan kamera → gambar kebiruan. Naikkan WB kamera atau pasang CTO.")+'</p>';
+  $("b3foot").textContent="LIGHT "+K+"K · WB "+camK+"K";
+}
+$("wbK").addEventListener("input",drawWB);
+var MOOD={none:["Netral","Warna asli lampu, belum ada emosi warna tertentu.","Wawancara, berita, iklan produk."],
+  biru:["Tenang, dingin, sepi","Menurut materi, cahaya biru menenangkan pikiran. Di film, biru sering terasa dingin, malam, sepi atau sedih.","Adegan malam, kesepian, horor dingin."],
+  hijau:["Rileks, seimbang","Ideal untuk relaksasi dan menyeimbangkan emosi. Di film juga bisa terasa asing, sakit, atau misterius.","Adegan alam, laboratorium, suasana janggal."],
+  orange:["Hangat, akrab","Mengurangi depresi, meningkatkan mood, suasana hangat dan bersahabat, menambah selera makan.","Kumpul keluarga, sore hari, kilas balik."],
+  magenta:["Romantis, hangat","Menciptakan suasana romantis dan hangat, juga untuk rasa kesepian atau rindu.","Adegan romantis, pesta, video musik."],
+  merah:["Agresif, eksotis","Meningkatkan agresivitas sekaligus memberi kesan eksotis, juga menghangatkan ruang dingin.","Adegan marah, bahaya, tegang."],
+  ungu:["Misterius, magis","Merangsang sekaligus menenangkan otak, membantu meditasi. Di layar sering terasa misterius atau futuristik.","Adegan mimpi, fantasi, sci-fi."]};
+var gs="orange";
+function drawG(){
+  var g=$("gels"); g.innerHTML="";
+  Object.keys(GEL).forEach(function(k){ var b=document.createElement("button"); b.type="button"; b.className="gel"; b.setAttribute("aria-pressed",String(gs===k)); b.innerHTML='<i style="background:'+toCss(GEL[k].c)+'"></i>'+GEL[k].n; b.addEventListener("click",function(){ gs=k; drawG(); }); g.appendChild(b); });
+  setScene($("cv3"),gelScene(gs)); var m=MOOD[gs];
+  $("gelOut").innerHTML='<div><span class="pill mid">'+GEL[gs].n+'</span></div><p style="font-family:var(--f-display);font-size:1.3rem;font-weight:600;color:var(--fg)">'+m[0]+'</p><p>'+m[1]+'</p><dl class="kv"><dt>Cocok untuk</dt><dd>'+m[2]+'</dd></dl>';
+  $("b3foot").textContent="KEY + GEL "+GEL[gs].n.toUpperCase();
+}
+var TP={key:{n:"Main / Key",dir:[-0.7,0.35,0.65],x:-0.72,z:0.62,soft:0.3,i:1.15,on:true,gel:"orange",d:"cahaya utama, membentuk wajah"},
+  fill:{n:"Fill",dir:[0.8,0.1,0.6],x:0.78,z:0.55,soft:0.8,i:0.42,on:true,gel:"none",d:"menipiskan bayangan dari key"},
+  back:{n:"Back",dir:[0.25,0.35,-0.9],x:0.25,z:-0.92,soft:0.2,i:1.4,on:true,gel:"biru",d:"memisahkan subjek dari background"}};
+var tpView="cam";
+function drawTP(){
+  var rows=$("tpRows"); rows.innerHTML="";
+  Object.keys(TP).forEach(function(k){ var o=TP[k],b=document.createElement("button"); b.type="button"; b.className="toggle"; b.setAttribute("aria-pressed",String(o.on)); b.innerHTML="<i></i>"+o.n; b.addEventListener("click",function(){ o.on=!o.on; drawTP(); });
+    var sel=document.createElement("select"); sel.id="tp-"+k; sel.setAttribute("aria-label","Gel untuk "+o.n);
+    Object.keys(GEL).forEach(function(gk){ var op=document.createElement("option"); op.value=gk; op.textContent=GEL[gk].n; if(gk===o.gel) op.selected=true; sel.appendChild(op); });
+    sel.addEventListener("change",function(){ o.gel=sel.value; drawTP(); }); rows.appendChild(b); rows.appendChild(sel); });
+  segment($("tpView"),[["cam","Preview kamera"],["studio","Tampak studio"]],tpView,function(k){ tpView=k; drawTP(); });
+  var on=Object.keys(TP).filter(function(k){ return TP[k].on; });
+  setScene($("cv3"),{mode:tpView==="studio"?1:0,ambient:tpView==="studio"?0.06:0.035,labels:on.map(function(k){ return TP[k].n.split(" ")[0].toUpperCase(); }),lights:on.map(function(k){ var o=TP[k]; return {dir:o.dir,soft:o.soft,i:o.i,color:GEL[o.gel].c}; })});
+  plot($("plot5"),Object.keys(TP).map(function(k){ var o=TP[k]; return {x:o.x,z:o.z,on:o.on,label:o.n.split(" ")[0],color:GEL[o.gel].c}; }));
+  var cs={}; on.forEach(function(k){ cs[TP[k].gel]=1; }); var nc=Object.keys(cs).length,ok=on.length===3&&nc>=2;
+  $("tpOut").innerHTML='<div><span class="pill '+(ok?"okp":"mid")+'">'+on.length+'/3 lampu · '+nc+' warna</span></div><dl class="kv">'+Object.keys(TP).map(function(k){ var o=TP[k]; return "<dt>"+o.n+"</dt><dd>"+(o.on?GEL[o.gel].n+" · "+o.d:"mati")+"</dd>"; }).join("")+"</dl><p>"+(ok?"Mantap, syarat tugas terpenuhi: three point lighting dengan minimal 2 warna.":"Syarat tugas: ketiga lampu menyala dan minimal 2 warna berbeda.")+"</p>";
+  $("b3foot").textContent=on.map(function(k){ return TP[k].n.split(" ")[0].toUpperCase()+":"+GEL[TP[k].gel].n.toUpperCase(); }).join(" · ")||"NO LIGHT";
+}
+setMode3("wb");
+
+/* Checklist */
+var checks=load("checks",{});
+document.querySelectorAll(".check input").forEach(function(c){ c.checked=!!checks[c.id]; c.addEventListener("change",function(){ checks[c.id]=c.checked; save("checks",checks); }); });
+
+/* ================= LATIHAN SOAL ================= */
+var QUIZ={
+"bab-1":[
+ {q:"Dalam tata cahaya, istilah “penerangan” berarti…",o:["Membuat semua area di set sama terangnya","Memberi penerangan pada bagian tertentu dengan intensitas tertentu","Menyalakan lampu sebanyak mungkin","Menghilangkan semua bayangan"],a:1,e:"Penerangan bukan sekadar membuat terang, tapi mengatur bagian mana yang disinari dan seberapa kuat."},
+ {q:"Perhatikan gambar. Wajah patung terlihat datar karena…",scene:"flat",o:["Semua bagian diterangi dengan intensitas yang sama","Memakai lampu berwarna","Lampu berada di belakang patung","Lampu terlalu jauh"],a:0,e:"Jika semua bagian diterangi sama rata, tidak ada pembagian gelap-terang sehingga gambar terlihat datar."},
+ {q:"Fungsi tata cahaya untuk memberi fokus perhatian pada area atau aksi tertentu disebut…",scene:"pick",o:["Membentuk dimensi","Sebagai pemilihan","Membangun atmosfer","Penerangan umum"],a:1,e:"Sebagai pemilihan: cahaya menentukan objek dan area yang disinari supaya penonton fokus ke sana."},
+ {q:"Kata “atmosfer” dalam tata cahaya menjelaskan…",o:["Suhu udara di lokasi syuting","Suasana serta emosi dalam peristiwa","Jumlah lampu yang dipakai","Jarak kamera ke subjek"],a:1,e:"Atmosfer = suasana dan emosi. Tata cahaya mampu menghadirkan suasana yang dikehendaki sutradara."},
+ {q:"Menurut materi, lighting yang baik adalah bila…",o:["Semua lampu menyala maksimal","Hasilnya terlihat natural atau tercapai tujuannya","Tidak ada bayangan sama sekali","Memakai lampu paling mahal"],a:1,e:"Lighting yang baik: terlihat natural atau tujuan adegannya tercapai."},
+ {tf:true,q:"Lampu tungsten menghasilkan cahaya kekuningan dengan suhu warna sekitar 3.200 K.",a:0,e:"Benar. Tungsten ±3.200 K (kuning/hangat), daylight ±5.000–5.600 K (putih)."},
+ {q:"Perhatikan gambar. Karakter cahaya yang dipakai adalah…",scene:"hard",o:["Soft light","Hard light","Back light","Available light"],a:1,e:"Bayangan hidung dan dinding tajam dengan batas tegas: ciri hard light."},
+ {q:"Perhatikan gambar. Bayangannya halus dan kontrasnya tipis. Cahaya ini kemungkinan berasal dari…",scene:"soft",o:["Lampu kecil tanpa diffuser yang bersifat spot","Sumber terpendar dan halus, misalnya softbox","Lampu yang diletakkan di belakang patung","Lampu berwarna merah"],a:1,e:"Soft light berasal dari sumber yang terpendar/disebar sehingga bayangan tidak keras."},
+ {q:"Berikut yang BUKAN faktor penentu banyaknya cahaya yang mengenai subjek adalah…",o:["Intensitas cahaya","Efisiensi penyebaran cahaya","Jarak sumber cahaya dan subjek","Merek kamera yang dipakai"],a:3,e:"Tiga faktornya: intensitas, efisiensi penyebaran, dan jarak. Merek kamera tidak termasuk."},
+ {q:"Lampu yang tadinya berjarak 1 m dijauhkan menjadi 2 m dari subjek. Cahaya yang sampai ke subjek menjadi kira-kira…",o:["Tetap sama","Setengahnya","Seperempatnya","Dua kali lipat"],a:2,e:"Hukum kuadrat terbalik: jarak 2× → cahaya 1/(2×2) = ¼. Buktikan di Lab 1."}
+],
+"bab-2":[
+ {q:"Cahaya matahari yang sudah tersedia di lokasi syuting termasuk…",o:["Artificial light","Available light","Reflected light","Back light"],a:1,e:"Available light / cahaya natural = cahaya yang sudah ada di lokasi."},
+ {q:"Cahaya yang melewati softbox atau kain putih sebelum mengenai objek disebut…",o:["Direct light","Diffused light","Reflected light","Top light"],a:1,e:"Diffused light melewati media penyebar sehingga lembut dan bayangannya halus."},
+ {q:"Kru memegang reflektor untuk memantulkan sinar matahari ke wajah aktor. Jenis cahaya yang dihasilkan adalah…",o:["Direct light","Diffused light","Reflected light","Artificial light"],a:2,e:"Cahaya yang dipantulkan dari permukaan (reflektor, stirofoam, dinding) disebut reflected light."},
+ {q:"Perhatikan gambar. Arah cahaya yang digunakan adalah…",scene:"front",o:["Front light","Side light","Top light","Back light"],a:0,e:"Wajah terang merata tanpa bayangan berarti: front light, karakternya flat/datar."},
+ {q:"Perhatikan gambar. Arah cahaya yang digunakan adalah…",scene:"back",o:["Front light","Top light","Side light","Back light"],a:3,e:"Wajah depan gelap, hanya tepi kepala dan bahu yang bercahaya (rim light/halo): back light."},
+ {q:"Perhatikan gambar. Arah cahaya yang digunakan adalah…",scene:"side",o:["Side light","Front light","Back light","Top light"],a:0,e:"Separuh wajah terang, separuh gelap: side light, menonjolkan tekstur dan depth."},
+ {q:"Perhatikan gambar. Arah cahaya yang digunakan adalah…",scene:"top",o:["Back light","Side light","Top light","Front light"],a:2,e:"Dahi dan hidung terang, sedangkan mata dan bawah dagu gelap: top light."},
+ {q:"Arah cahaya yang paling menonjolkan tekstur, bentuk, dan kedalaman gambar (depth) adalah…",o:["Front light","Side light","Top light","Ambient light"],a:1,e:"Side light membentuk bayangan pada objek sehingga tekstur dan depth terlihat."},
+ {tf:true,q:"Top light dapat membuat bayangan terlalu gelap di bagian bawah mata dan dagu.",a:0,e:"Benar. Itu kekurangan utama top light walaupun warnanya terlihat natural."},
+ {q:"Efek “rim light”, siluet (silhouette), dan “halo” dihasilkan oleh…",o:["Front light","Side light","Top light","Back light"],a:3,e:"Back light memisahkan objek dari background dan memberi efek rim light, siluet, atau halo."}
+],
+"bab-3":[
+ {q:"Satuan untuk mengukur suhu warna cahaya adalah…",o:["Lux","Watt","Kelvin","Lumen"],a:2,e:"Suhu warna diukur dalam satuan Kelvin (K)."},
+ {q:"Semakin TINGGI nilai Kelvin, warna cahaya cenderung…",o:["Kemerahan","Kebiruan","Kehijauan","Tidak berubah"],a:1,e:"Kelvin tinggi = kebiruan (dingin). Kelvin rendah = oranye/kemerahan (hangat)."},
+ {q:"Perhatikan gambar (white balance kamera 5.600 K). Lampu yang dipakai kemungkinan bersuhu…",scene:"k1900",o:["±1.900 K seperti lilin","±5.600 K daylight","±9.000 K langit biru","±7.000 K mendung"],a:0,e:"Patung tampak oranye pekat di kamera 5.600 K, berarti Kelvin lampunya jauh lebih rendah, seperti lilin."},
+ {q:"White balance kamera diatur 5.600 K, tetapi lampunya tungsten 3.200 K. Hasil gambarnya…",o:["Netral","Kebiruan","Kekuningan/oranye","Hitam putih"],a:2,e:"Kelvin lampu lebih rendah dari setelan kamera, jadi gambar kekuningan. Coba di Lab White Balance."},
+ {q:"Filter untuk mengubah lampu tungsten menjadi seperti daylight adalah…",o:["CTO","CTB","ND","Polarizer"],a:1,e:"CTB (Color to Blue) mengubah tungsten menjadi mendekati daylight."},
+ {q:"Ukuran filter ¼, ½, dan Full menunjukkan…",o:["Besar lembar filternya","Intensitas kepekatan warnanya","Harga filternya","Jumlah lampu yang bisa dipasangi"],a:1,e:"Ukuran tersebut menunjukkan tingkat kepekatan warna, bukan besar fisik filter."},
+ {q:"Filter light (gel) adalah…",o:["Lensa tambahan kamera","Plastik warna di depan lampu untuk memberi warna pada cahaya","Kabel penghubung lampu","Payung pemantul cahaya"],a:1,e:"Gel adalah plastik warna yang dipasang di depan perangkat lighting untuk mengubah warna cahaya."},
+ {q:"Perhatikan gambar. Gel warna ini cocok untuk adegan bersuasana…",scene:"g-orange",o:["Hangat dan bersahabat","Dingin dan sepi","Tegang dan berbahaya","Asing dan sakit"],a:0,e:"Cahaya oranye memberi suasana hangat dan bersahabat serta meningkatkan mood."},
+ {q:"Warna cahaya yang paling cocok untuk adegan romantis adalah…",o:["Magenta","Hijau","Biru","Putih daylight"],a:0,e:"Magenta menciptakan suasana romantis dan hangat."},
+ {q:"Three Point Lighting terdiri dari…",o:["Front, side, top light","Main/key light, fill light, back light","Daylight, tungsten, LED","CTB, CTO, gel"],a:1,e:"Tiga titik dasar: main/key light (utama), fill light (pengisi), back light (belakang)."}
+]};
+var NEXT={"bab-1":"bab-2","bab-2":"bab-3","bab-3":null};
+var DEFSC={"bab-1":"dim","bab-2":"sideBack","bab-3":"tp"};
+function predikat(n){ return n>=90?"A · Sangat Baik":n>=80?"B · Baik":n>=70?"C · Cukup":"D · Perlu Remedial"; }
+
+var QUIZZES=[];
+function mountQuiz(el){
+  var id=el.dataset.quiz,Q=QUIZ[id],st;
+  el.innerHTML='<div class="qcard"></div><div class="qside"><div class="card board"></div><div class="qmon monitor"><div class="mon-bar"><span class="rec"><span class="dot"></span>REC</span><span class="qlabel">CAM A</span><span class="js-tc"></span></div><div class="cv"><canvas></canvas></div><div class="mon-foot"><span class="qcap"></span></div></div></div>';
+  var card=el.querySelector(".qcard"),board=el.querySelector(".board"),cv=el.querySelector("canvas"),cap=el.querySelector(".qcap"),lab=el.querySelector(".qlabel");
+  function reset(){ st={i:0,score:0,phase:"intro",log:[],start:null}; draw(); }
+  function boardHtml(){
+    var d=Q.map(function(_,j){ var l=st.log[j]; return '<i class="'+(l?(l.ok?"ok":"no"):(j===st.i&&st.phase==="q"?"now":""))+'"></i>'; }).join("");
+    return '<span class="tag">Papan skor · '+esc(student?student.nama:"")+'</span><div class="qdots">'+d+'</div><div class="stats"><div class="stat"><b>'+st.score+'</b><span>Benar</span></div><div class="stat"><b>'+(st.score*10)+'</b><span>XP latihan ini</span></div></div>';
+  }
+  function draw(){
+    board.innerHTML=boardHtml();
+    if(st.phase==="intro"){
+      var b=best()[id];
+      card.innerHTML='<div class="q-top"><span>LATIHAN '+META[id][0]+'</span><span>'+Q.length+' SOAL</span></div><div class="q-prog"><i style="width:0"></i></div><div class="q-body"><h2>'+META[id][1]+'</h2><dl class="kv"><dt>Nama</dt><dd>'+esc(student.nama)+'</dd><dt>Kelas</dt><dd>'+esc(student.kelas)+'</dd><dt>Jumlah soal</dt><dd>'+Q.length+' (pilihan ganda &amp; benar/salah)</dd><dt>KKM</dt><dd>'+KKM+'</dd><dt>Nilai terbaik</dt><dd>'+(b!=null?b*10:"belum ada")+'</dd></dl><p class="muted">Tiap jawaban langsung ada pembahasannya. Setelah selesai, kamu bisa mengunduh hasilnya dalam bentuk PDF untuk dikumpulkan ke guru.</p><div class="cta-row"><button class="btn primary" type="button" data-start>Mulai latihan →</button></div></div>';
+      card.querySelector("[data-start]").addEventListener("click",function(){ st.phase="q"; st.start=new Date(); draw(); });
+      lab.textContent="CAM A · "+META[id][1].toUpperCase(); cap.textContent="SIAP REKAM"; setScene(cv,SC[DEFSC[id]]);
+      return;
+    }
+    if(st.phase==="end") return drawEnd();
+    var q=Q[st.i],opts=q.tf?["Benar","Salah"]:q.o;
+    card.innerHTML='<div class="q-top"><span>SOAL '+(st.i+1)+'/'+Q.length+'</span><span>'+(q.scene?"LIHAT MONITOR →":"SOAL TEKS")+'</span></div><div class="q-prog"><i style="width:'+(st.i/Q.length*100)+'%"></i></div><div class="q-body"><h3>'+q.q+'</h3><div class="opts">'+opts.map(function(o,j){ return '<button class="opt" type="button" data-j="'+j+'"><span class="l">'+"ABCD"[j]+'</span><span>'+o+'</span></button>'; }).join("")+'</div><div class="fbx" aria-live="polite"></div><div class="q-actions"></div></div>';
+    card.querySelectorAll(".opt").forEach(function(b){ b.addEventListener("click",function(){ pick(+b.dataset.j); }); });
+    lab.textContent="CAM A · SOAL "+(st.i+1); cap.textContent=q.scene?"GAMBAR SOAL "+(st.i+1):"TIDAK ADA GAMBAR UNTUK SOAL INI";
+    setScene(cv,q.scene?SC[q.scene]:SC[DEFSC[id]]);
+  }
+  function pick(j){
+    var q=Q[st.i],ok=j===q.a,opts=q.tf?["Benar","Salah"]:q.o;
+    if(ok) st.score++;
+    st.log.push({q:q.q,pick:opts[j],key:opts[q.a],ok:ok,e:q.e});
+    card.querySelectorAll(".opt").forEach(function(b){ var k=+b.dataset.j; b.disabled=true; if(k===q.a) b.classList.add("right"); else if(k===j) b.classList.add("wrong"); });
+    card.querySelector(".fbx").innerHTML='<div class="fb '+(ok?"good":"bad")+'"><b>'+(ok?["Mantap!","Gas terus!","Keren!","Tepat sekali!"][st.i%4]+" +10 XP":"Belum tepat")+'</b><p>'+q.e+'</p></div>';
+    board.innerHTML=boardHtml();
+    var nb=document.createElement("button"); nb.className="btn primary"; nb.type="button"; nb.textContent=st.i<Q.length-1?"Soal berikutnya →":"Lihat hasil";
+    nb.addEventListener("click",function(){ st.i++; if(st.i>=Q.length) st.phase="end"; draw(); });
+    card.querySelector(".q-actions").appendChild(nb); nb.focus({preventScroll:true});
+  }
+  function drawEnd(){
+    if(!st.saved){ st.saved=true; st.end=new Date(); var b=best(); st.prev=b[id]; if(b[id]==null||st.score>b[id]){ b[id]=st.score; save("best",bestAll); refreshProgress(); } }
+    var nilai=Math.round(st.score/Q.length*100),tuntas=nilai>=KKM;
+    card.innerHTML='<div class="q-top"><span>HASIL LATIHAN</span><span>'+(st.prev==null||st.score>st.prev?"NILAI TERBAIK BARU":"TERBAIK: "+(st.prev*10))+'</span></div><div class="q-prog"><i style="width:100%"></i></div><div class="q-body">'+
+      '<div class="score">'+nilai+'<small> / 100</small></div><div><span class="pill '+(tuntas?"okp":"hi")+'">'+(tuntas?"TUNTAS":"BELUM TUNTAS")+' · KKM '+KKM+'</span> <span class="pill mid">'+predikat(nilai)+'</span></div>'+
+      '<dl class="kv"><dt>Nama</dt><dd>'+esc(student.nama)+'</dd><dt>Kelas</dt><dd>'+esc(student.kelas)+'</dd><dt>Benar</dt><dd>'+st.score+' dari '+Q.length+' soal · +'+(st.score*10)+' XP</dd></dl>'+
+      '<p class="muted">Unduh hasilnya sebagai PDF lalu kumpulkan ke guru.</p>'+
+      '<div class="cta-row"><button class="btn primary" type="button" data-pdf>Unduh hasil (PDF)</button><button class="btn" type="button" data-r>Ulangi</button>'+(NEXT[id]?'<button class="btn" type="button" data-next>Bab berikutnya →</button>':'<button class="btn" type="button" data-home>Ke beranda</button>')+'</div></div>';
+    board.innerHTML='<span class="tag">Pembahasan semua soal</span><div class="review">'+st.log.map(function(l,j){ return '<div class="'+(l.ok?"ok":"no")+'"><b>'+(j+1)+'. '+l.q+'</b><p>Jawabanmu: '+esc(l.pick)+(l.ok?" ✓":" · Kunci: "+esc(l.key))+'. '+l.e+'</p></div>'; }).join("")+'</div>';
+    board.style.overflow="auto";
+    el.querySelector(".qside").style.gridTemplateRows="minmax(0,1.4fr) minmax(0,1fr)";
+    lab.textContent="CAM A · CUT!"; cap.textContent="NILAI "+nilai; setScene(cv,SC[nilai>=KKM?"tp":"atmo"]);
+    card.querySelector("[data-pdf]").addEventListener("click",function(e){ downloadPdf(id,st,e.currentTarget); });
+    card.querySelector("[data-r]").addEventListener("click",function(){ el.querySelector(".qside").style.gridTemplateRows=""; board.style.overflow=""; reset(); st.phase="q"; st.start=new Date(); draw(); });
+    var nx=card.querySelector("[data-next]"); if(nx) nx.addEventListener("click",function(){ go(NEXT[id],"materi"); });
+    var hm=card.querySelector("[data-home]"); if(hm) hm.addEventListener("click",function(){ go("home"); });
+    if(st.score>0) toast("Hasil tersimpan: nilai "+nilai);
+  }
+  QUIZZES.push({reset:function(){ el.querySelector(".qside").style.gridTemplateRows=""; board.style.overflow=""; reset(); }});
+}
+
+/* ================= PDF ================= */
+var LOGO=null;
+(function(){ var im=new Image(); im.onload=function(){ try{ var c=document.createElement("canvas"); c.width=im.naturalWidth; c.height=im.naturalHeight; c.getContext("2d").drawImage(im,0,0); LOGO=c.toDataURL("image/png"); }catch(e){ LOGO=null; } }; im.src="img/logo-smkn7.png"; })();
+var dlP=(window.claude&&typeof window.claude.use==="function")?window.claude.use("downloads").catch(function(){ return null; }):Promise.resolve(null);
+function asc(s){ return String(s).replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/→/g,"->").replace(/[−–—]/g,"-").replace(/≈/g,"~").replace(/×/g,"x").replace(/…/g,"...").replace(/✓/g,""); }
+function makePdf(id,st){
+  var J=window.jspdf&&window.jspdf.jsPDF; if(!J) throw new Error("nolib");
+  var doc=new J({unit:"mm",format:"a4"}),M=15,W=210,y,Q=QUIZ[id],nilai=Math.round(st.score/Q.length*100),tuntas=nilai>=KKM;
+  doc.setFillColor(15,14,12); doc.rect(0,0,W,30,"F");
+  var tx=M; if(LOGO){ try{ doc.addImage(LOGO,"PNG",M,5,20,19.6); tx=M+24; }catch(e){} }
+  doc.setFont("helvetica","bold"); doc.setFontSize(17); doc.setTextColor(255,174,69); doc.text("LIGHTING LAB",tx,14.5);
+  doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(230,224,214);
+  doc.text(asc("Hasil Latihan Soal - "+META[id][0].replace(" · "," - ")+": "+META[id][1]),tx,22);
+  doc.setFont("helvetica","bold"); doc.text(asc(SCHOOL),W-M,14.5,{align:"right"});
+  doc.setFont("helvetica","normal"); doc.text("Broadcasting & Perfilman",W-M,22,{align:"right"});
+  y=40; doc.setTextColor(20,20,20); doc.setFontSize(10);
+  var dt=(st.end||new Date()), info=[["Nama",student.nama],["Kelas",student.kelas],["No. Absen",student.absen||"-"],["Tanggal",dt.toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"})+" "+dt.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})],["Pengajar",TEACHER]];
+  info.forEach(function(r,i){ doc.setFont("helvetica","bold"); doc.text(r[0],M,y+i*6.5); doc.setFont("helvetica","normal"); doc.text(asc(": "+r[1]),M+24,y+i*6.5); });
+  var bx=W-M-62; doc.setDrawColor(200,195,188); doc.setFillColor(248,246,242); doc.roundedRect(bx,34,62,34,3,3,"FD");
+  doc.setFontSize(8); doc.setTextColor(110,105,98); doc.text("NILAI",bx+5,40);
+  doc.setFont("helvetica","bold"); doc.setFontSize(28); doc.setTextColor(20,20,20); doc.text(String(nilai),bx+5,53);
+  doc.setFontSize(9); doc.setTextColor(tuntas?30:200,tuntas?140:50,tuntas?80:40); doc.text(tuntas?"TUNTAS":"BELUM TUNTAS",bx+5,60);
+  doc.setFont("helvetica","normal"); doc.setTextColor(60,60,60); doc.text(asc(st.score+"/"+Q.length+" benar - KKM "+KKM),bx+5,65);
+  doc.setFont("helvetica","bold"); doc.setTextColor(20,20,20); doc.text(asc(predikat(nilai).replace(" · "," - ")),bx+32,53);
+  y=78; doc.setDrawColor(220,215,208); doc.line(M,y-4,W-M,y-4);
+  var cols=[[M,9,"No"],[M+9,79,"Soal"],[M+88,36,"Jawaban siswa"],[M+124,36,"Kunci"],[M+160,20,"Hasil"]];
+  function head(){ doc.setFillColor(15,14,12); doc.rect(M,y,180,7,"F"); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(255,255,255); cols.forEach(function(c){ doc.text(c[2],c[0]+2,y+4.8); }); y+=7; }
+  head(); doc.setFontSize(8.5);
+  st.log.forEach(function(l,i){
+    doc.setFont("helvetica","normal");
+    var cells=[[String(i+1)],doc.splitTextToSize(asc(l.q),cols[1][1]-4),doc.splitTextToSize(asc(l.pick),cols[2][1]-4),doc.splitTextToSize(asc(l.key),cols[3][1]-4),[l.ok?"Benar":"Salah"]];
+    var n=Math.max.apply(null,cells.map(function(c){ return c.length; })),rh=n*3.8+3.4;
+    if(y+rh>282){ doc.addPage(); y=15; head(); doc.setFontSize(8.5); doc.setFont("helvetica","normal"); }
+    if(i%2===0){ doc.setFillColor(246,244,240); doc.rect(M,y,180,rh,"F"); }
+    cells.forEach(function(c,k){ if(k===4){ doc.setFont("helvetica","bold"); doc.setTextColor(l.ok?30:200,l.ok?140:50,l.ok?80:40); } else { doc.setFont("helvetica","normal"); doc.setTextColor(30,30,30); } doc.text(c,cols[k][0]+2,y+4.2); });
+    y+=rh;
+  });
+  var wrong=st.log.filter(function(l){ return !l.ok; });
+  if(wrong.length){
+    y+=8; if(y>265){ doc.addPage(); y=20; }
+    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(20,20,20); doc.text("Pembahasan soal yang belum tepat",M,y); y+=6;
+    doc.setFontSize(8.8);
+    st.log.forEach(function(l,i){ if(l.ok) return;
+      var t=doc.splitTextToSize(asc((i+1)+". "+l.e),180); if(y+t.length*4>284){ doc.addPage(); y=20; }
+      doc.setFont("helvetica","normal"); doc.setTextColor(40,40,40); doc.text(t,M,y); y+=t.length*4+2; });
+  }
+  var pc=doc.getNumberOfPages();
+  for(var p=1;p<=pc;p++){ doc.setPage(p); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(140,135,128);
+    doc.text(asc("Lighting Lab - Materi Pencahayaan oleh "+TEACHER),M,292); doc.text("Halaman "+p+"/"+pc,W-M,292,{align:"right"}); }
+  return doc.output("blob");
+}
+function downloadPdf(id,st,btn){
+  var blob; try{ blob=makePdf(id,st); }catch(e){ toast("Pembuat PDF belum termuat. Periksa koneksi internet lalu coba lagi."); return; }
+  var name=("Hasil-"+META[id][1]+"-"+student.nama+"-"+student.kelas).replace(/[^\w\- ]+/g,"").replace(/\s+/g,"_")+".pdf";
+  btn.disabled=true;
+  dlP.then(function(dl){
+    if(dl) return dl.save({filename:name,data:blob}).then(function(){ toast("PDF tersimpan: "+name); },function(err){
+      var c=err&&err.code; if(c==="declined") toast("Unduhan dibatalkan."); else if(c==="rate_limited") toast("Tunggu sebentar, lalu coba lagi."); else fallback(); });
+    fallback();
+  }).then(function(){ btn.disabled=false; },function(){ btn.disabled=false; });
+  function fallback(){ var u=URL.createObjectURL(blob),a=document.createElement("a"); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },4000); toast("PDF diunduh: "+name); }
+}
+
+document.querySelectorAll("[data-quiz]").forEach(mountQuiz);
+
+/* ================= Mulai ================= */
+if(student){ enterApp(); } else { $("gate").hidden=false; refreshVisible($("gate")); }
+})();
+</script>
+
+</html>
